@@ -10,7 +10,7 @@ var MODE_TITLE = 0;
 var MODE_PLAY  = 1;
 var MODE_WIN   = 2;
 var shipPoly = [ [8,0], [-8,4], [-8,-4] ];
-var enemyPoly = [ [8,8], [-8,8], [-8,-8], [8,-8] ];
+var enemyPoly = [ [8,6], [-8,8], [-8,-8], [8,-6] ];
 var enemyAccel = 0.01;
 var enemyDecel = 0.05;
 characterWidth = 12;
@@ -34,7 +34,11 @@ var starMap = [
     new Planet("AREUCAW", 21736.1052383,2496.67420002, 0.1, 64)
 ];
 
-var planet = starMap[0];
+function Explosion(x,y)
+{
+    this.x = x; this.y = y;
+    this.timeout = 32;
+}
 
 function sgn(x)
 {
@@ -58,6 +62,7 @@ function Enemy(sx,sy)
     this.r = 0;
     this.speed = 1;
     this.radius = 8;
+    this.health = 100;
 }
 
 function drawChar(context, c, x, y) 
@@ -110,6 +115,11 @@ function resetGame()
     laser = false;
     laserCoolDown = 0;
     frameCounter = 0;
+    deadTimeout = 0;
+
+    planet = starMap[0];
+    explosions = new Array();
+    shields = 100;
 }
 
 function init()
@@ -148,6 +158,20 @@ function rotatePoly(original, radians)
     return newPoly;
 }
 
+function drawExplosions()
+{
+    var i;
+    for(i=0;i<explosions.length;i++) {
+	var e = explosions[i];
+	if(e.timeOut <= 0) continue;
+	console.log("Drawing explosion at"+e.x+","+e.y);
+	ctx.strokeStyle = "#ffffff";
+	ctx.beginPath();
+	ctx.arc(cx - x + e.x, cy - y + e.y, 32-e.timeout, 0, 2*Math.PI);
+	ctx.stroke();
+    }
+}
+
 function drawPlanet()
 {
     ctx.strokeStyle = "#ffffff";
@@ -170,11 +194,19 @@ function drawPlayer()
 	laserCoolDown = 16;
     }
     if(laserCoolDown>0) laserCoolDown -=1;
+
 }
 
 function drawEnemy(e)
 {
     drawPoly(rotatePoly(enemyPoly, e.r), cx - x + e.x, cy - y + e.y);
+}
+
+function drawStatusBar()
+{
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(480, 0, 640-480, SCREENHEIGHT);
+    drawString(ctx, "Shield: "+shields, 480+8, 8);
 }
 
 function draw() {
@@ -188,25 +220,62 @@ function draw() {
 
     drawPlayer (x,y);
     drawPlanet();
+    drawExplosions();
     for(i=0;i<enemies.length;i++) {
+	if(enemies[i].health <= 0) continue;
 	drawEnemy(enemies[i]);
     }
+    drawStatusBar();
+
     if(mode == MODE_WIN) {
 	ctx.drawImage(winBitmap, 0, 0);
     }
 }
 
 function processKeys() {
-    if(keysDown[40] || keysDown[83]) speed -= 0.1;
-    if(keysDown[38] || keysDown[87]) speed += 0.1;
+    if((keysDown[40] || keysDown[83]) && speed > 0.2) speed -= 0.1;
+    if((keysDown[38] || keysDown[87]) && speed < 5.0) speed += 0.1;
     if(keysDown[37] || keysDown[65]) r -= 0.1;
     if(keysDown[39] || keysDown[68]) r += 0.1;
     laser = (keysDown[32] && laserCoolDown <= 0);
 }
 
+function makeExplosion(x,y)
+{
+    explosions.push(new Explosion(x,y));
+}
+
+function purge()
+{
+    var newEnemies = new Array();
+    var i;
+    for(i=0;i<enemies.length;i++) {
+	if(enemies[i].health > 0)
+	    newEnemies.push(enemies[i]);
+    }
+    enemies = newEnemies;
+    var newExplosions = new Array();
+    for(i=0;i<explosions.length;i++) {
+	if(explosions[i].timeout > 0)
+	    newExplosions.push(explosions[i]);
+    }
+    explosions = newExplosions;
+}
+
+function runExplosions()
+{
+    var i;
+    for(i=0;i<explosions.length;i++) {
+	if(explosions[i].timeout > 0)
+	    explosions[i].timeout -= 1;
+    }
+}
+
 function runEnemies() {
+    var i;
     for(i=0;i<enemies.length;i++) {
 	e = enemies[i];
+	if(e.health <= 0) continue;
 	e.x += e.speed * Math.cos(e.r);
 	e.y += e.speed * Math.sin(e.r);
 	dx = x - e.x;
@@ -214,12 +283,12 @@ function runEnemies() {
 	dir = Math.atan2(dy,dx);
 	dd = (dir-e.r);
 	e.r += 0.05*sgn(Math.sin(dd));
-	dist = dx*dx+dy*dy;
+	distsq = dx*dx+dy*dy;
 
-	if(dist < 32*32 && e.speed>enemyDecel) {
+	if(distsq < 32*32 && e.speed>enemyDecel) {
 	    e.speed -= enemyDecel;
 	}
-	if(dist > 64*64 && e.speed < 1) {
+	if(distsq > 64*64 && e.speed < 1) {
 	    e.speed += enemyAccel;
 	}
 
@@ -228,6 +297,7 @@ function runEnemies() {
 	for(j=0;j<enemies.length;j++) {
 	    if(j==i) continue;
 	    var e1 = enemies[j];
+	    if(e1.health <= 0) continue;
 	    var dx = e1.x - e.x;
 	    var dy = e1.y - e.y;
 	    var dist = dx*dx+dy*dy;
@@ -237,9 +307,45 @@ function runEnemies() {
 		e.r -= 0.05*sgn(Math.sin(dd));
 		//if(e.speed > 0.5) e.speed -= enemyDecel;
 	    }
+	    if(dist < 8*8) {
+		// Collision, damage both
+		e.health -= 10;
+		e1.health -= 10;
+		midx = (e1.x+e.x)/2;
+		midy = (e1.y+e.y)/2;
+		dx = e1.x - midx;
+		dy = e1.y - midy;
+		// Repulsive kick:
+		e1.x += dx;
+		e1.y += dy;
+		e.x -= dx;
+		e.y -= dy;
+		makeExplosion(midx, midy);
+	    }
+	}
+	// Collisions with player
+	if(distsq < 8*8) {
+	    // Collision, damage both
+	    shields -= 10;
+	    e.health -= 10;
+	    midx = (x+e.x)/2;
+	    midy = (y+e.y)/2;
+	    dx = x - midx;
+	    dy = y - midy;
+	    // Repulsive kick:
+	    x += dx;
+	    y += dy;
+	    e.x -= dx;
+	    e.y -= dy;
+	    makeExplosion(midx, midy);
 	}
 
     }
+}
+
+function killPlayer()
+{
+    deadTimeout = 32;
 }
 
 function runOrbit() {
@@ -251,16 +357,26 @@ function runOrbit() {
     vy = speed*Math.sin(r);
     // Now add on the gravitational vector
     dist = Math.sqrt(dx*dx+dy*dy);
+    if(dist < planet.radius) {
+	makeExplosion(x,y);
+	killPlayer();
+    }
     gx = dx * planet.mass / dist;
     gy = dy * planet.mass / dist;
     vx += gx;
     vy += gy;
     // Correct heading
     r = Math.atan2(vy,vx);
-
 }
 
 function runPlayer() {
+    if(deadTimeout > 0) {
+	deadTimeout -=1;
+	if(deadTimeout <= 0) {
+	    mode = MODE_TITLE;
+	}
+	return;
+    }
     laserLen = 1000;
     x += speed*Math.cos(r);
     y += speed*Math.sin(r);
@@ -283,7 +399,8 @@ function runPlayer() {
 	    }
 	}
 	if (closest>-1) {
-	    enemies[closest].y += 256;
+	    enemies[closest].health -= 10;
+	    makeExplosion(enemies[closest].x, enemies[closest].y);
 	    laserLen = closestDist;
 	}
     }
@@ -316,9 +433,13 @@ function drawRepeat() {
 	processKeys();
 	runPlayer();
 	runEnemies();
+	runExplosions();
 	frameCounter += 1;
 	if(frameCounter % 128 == 0) {
 	    updateStar();
+	}
+	if(frameCounter % 64 == 0) {
+	    purge();
 	}
     }
     draw();
