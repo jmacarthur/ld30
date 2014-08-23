@@ -267,6 +267,22 @@ function runExplosions()
     }
 }
 
+function collide(e1, e2)
+{
+    e1.health -= 10;
+    e2.health -= 10;
+    var midx = (e1.x+e2.x)/2;
+    var midy = (e1.y+e2.y)/2;
+    var dx = e1.x - midx;
+    var dy = e1.y - midy;
+    // Repulsive kick:
+    e1.x += dx;
+    e1.y += dy;
+    e2.x -= dx;
+    e2.y -= dy;
+    makeExplosion(midx, midy);
+}
+
 function runEnemies() {
     var i;
     for(i=0;i<enemies.length;i++) {
@@ -304,38 +320,13 @@ function runEnemies() {
 		//if(e.speed > 0.5) e.speed -= enemyDecel;
 	    }
 	    if(dist < 8*8) {
-		// Collision, damage both
-		e.health -= 10;
-		e1.health -= 10;
-		midx = (e1.x+e.x)/2;
-		midy = (e1.y+e.y)/2;
-		dx = e1.x - midx;
-		dy = e1.y - midy;
-		// Repulsive kick:
-		e1.x += dx;
-		e1.y += dy;
-		e.x -= dx;
-		e.y -= dy;
-		makeExplosion(midx, midy);
+		collide(e, e1)
 	    }
 	}
 	// Collisions with player
 	if(distsq < 8*8) {
-	    // Collision, damage both
-	    player.shields -= 10;
-	    e.health -= 10;
-	    midx = (player.x+e.x)/2;
-	    midy = (player.y+e.y)/2;
-	    dx = player.x - midx;
-	    dy = player.y - midy;
-	    // Repulsive kick:
-	    player.x += dx;
-	    player.y += dy;
-	    e.x -= dx;
-	    e.y -= dy;
-	    makeExplosion(midx, midy);
+	    collide(e, player);
 	}
-
     }
 }
 
