@@ -11,7 +11,27 @@ var shipPoly = [ [8,0], [-8,4], [-8,-4] ];
 var enemyPoly = [ [8,8], [-8,8], [-8,-8], [8,-8] ];
 var enemyAccel = 0.01;
 var enemyDecel = 0.05;
-var planet = {x: 240, y:240, mass: 0.1, radius: 64};
+
+function Planet(name, x, y, mass, radius)
+{
+    this.name = name; this.x = x; this.y = y; this.mass = mass;
+    this.radius = radius;
+}
+
+var starMap = [
+    new Planet("UNQUHEX", 51252.4729724,62263.5669664, 0.1, 64),
+    new Planet("OLAOYRI", 31161.6740694,32781.9211199, 0.1, 64),
+    new Planet("ORCAMEC", 31210.6883079,346.27624567, 0.1, 64),
+    new Planet("OLAOYRI", 14479.4387553,5512.81099972, 0.1, 64),
+    new Planet("ILKUOUC", 17507.3398211,24201.9298703, 0.1, 64),
+    new Planet("PREO",    27097.5082089,29768.19066, 0.1, 64),
+    new Planet("TESAUS",  5436.93976607,79.7122271237, 0.1, 64),
+    new Planet("EXQUCXEE",36710.6468034,45688.9802764, 0.1, 64),
+    new Planet("TISGEAEU",53958.1179706,63367.7590348, 0.1, 64),
+    new Planet("AREUCAW", 21736.1052383,2496.67420002, 0.1, 64)
+];
+
+var planet = starMap[0];
 
 function sgn(x)
 {
@@ -224,7 +244,7 @@ function runOrbit() {
     dx = planet.x - x;
     dy = planet.y - y;
     // Gravity applies a force which will skew the direction of the ship
-    // So, original vector =
+    // So, original vector:
     vx = speed*Math.cos(r);
     vy = speed*Math.sin(r);
     // Now add on the gravitational vector
@@ -269,11 +289,30 @@ function runPlayer() {
     runOrbit();
 }
 
+function updateStar()
+{
+    // This makes 'planet' point to nearest entry in the starmap. It doesn't need to
+    // be run every cycle - 1/100 or something would be fine.
+    var closestDistsq;
+    var i;
+    for(i=0;i<starMap.length;i++) {
+	dx = starMap[i].x - x;
+	dy = starMap[i].y - y;
+	distsq = dx*dx+dy*dy;
+	if(i==0 || distsq < closest) {
+	    closestDistsq = distsq;
+	    closest = i;
+	}
+    }
+    planet = starMap[closest];
+}
+
 function drawRepeat() {
     if(mode != MODE_TITLE) {
 	processKeys();
 	runPlayer();
 	runEnemies();
+	//updateStar();
     }
     draw();
     if(!stopRunloop) setTimeout('drawRepeat()',20);
