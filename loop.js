@@ -11,9 +11,31 @@ var MODE_PLAY  = 1;
 var MODE_WIN   = 2;
 var shipPoly = [ [8,0], [-8,4], [-8,-4] ];
 var enemyPoly = [ [8,6], [-8,8], [-8,-8], [8,-6] ];
+var explodePoly = [
+    [16.000000,0.000000],
+    [7.391036,3.061467],
+    [11.313708,11.313708],
+    [3.061467,7.391036],
+    [0.000000,16.000000],
+    [-3.061467,7.391036],
+    [-11.313708,11.313708],
+    [-7.391036,3.061467],
+    [-16.000000,0.000000],
+    [-7.391036,-3.061467],
+    [-11.313708,-11.313708],
+    [-3.061467,-7.391036],
+    [-0.000000,-16.000000],
+    [3.061467,-7.391036],
+    [11.313708,-11.313708],
+    [7.391036,-3.061467] ];
 var enemyAccel = 0.01;
 var enemyDecel = 0.05;
 characterWidth = 12;
+var shotEvadeChance = 0.80;
+var degreesToRadians = Math.PI/180;
+var radarx = 480+80;
+var radary = 240;
+var orbitCounter = 0;
 function Planet(name, x, y, mass, radius)
 {
     this.name = name; this.x = x; this.y = y; this.mass = mass;
@@ -63,7 +85,11 @@ function Enemy(sx,sy)
     this.speed = 1;
     this.radius = 8;
     this.health = 100;
+    this.laser = false;
+    this.laserLen = 0;
+    this.laserCoolDown = false;
 }
+
 
 function drawChar(context, c, x, y) 
 {
@@ -104,17 +130,18 @@ function makeTitleBitmaps()
 
 function resetGame()
 {
-    player = { x: 128, y: 128, r: 0, speed: 1, shields: 100 };
     enemies = new Array();
     var i;
-    for(i=0;i<10;i++)
-	enemies.push ( new Enemy(256+64*i,128) );
     laser = false;
     laserCoolDown = 0;
     frameCounter = 0;
     deadTimeout = 0;
 
     planet = starMap[0];
+
+    // Start the player in orbit around the planet
+    player = { x: planet.x, y: planet.y-planet.radius-32, r: 0, speed: 3, shields: 100, radius: 8 };
+
     explosions = new Array();
 }
 
@@ -154,39 +181,66 @@ function rotatePoly(original, radians)
     return newPoly;
 }
 
+function scalePoly(original, factor)
+{
+    var newPoly = new Array();
+    var i;
+    for(i=0;i<original.length;i++) {
+	ox = original[i][0];
+	oy = original[i][1];
+	newPoly.push( [ox*factor, oy*factor]);
+    }
+    return newPoly;
+}
+
 function drawExplosions()
 {
-    var i;
     for(i=0;i<explosions.length;i++) {
-	var e = explosions[i];
-	if(e.timeOut <= 0) continue;
-	console.log("Drawing explosion at"+e.x+","+e.y);
-	ctx.strokeStyle = "#ffffff";
-	ctx.beginPath();
-	ctx.arc(cx - player.x + e.x, cy - player.y + e.y, 32-e.timeout, 0, 2*Math.PI);
-	ctx.stroke();
+	var e = explosions[i]
+	if(e.timeout <= 0) continue;
+	var rotExplodePoly = scalePoly(rotatePoly(explodePoly, e.timeout * Math.PI/32), 16.0/(e.timeout+16));
+	drawPoly(rotExplodePoly, cx - player.x + e.x, cy - player.y + e.y);
     }
 }
 
 function drawPlanet()
 {
+    var dx = planet.x - player.x;
+    var dy = planet.y - player.y;
+    if(Math.abs(dx) > cx+planet.radius || Math.abs(dy) > cy+planet.radius) {
+	// It's off screen...
+	var planetDir = Math.atan2(dy, dx);
+	var r1 = cx-32;
+	var r2 = cx-16;
+	ctx.beginPath();
+	ctx.moveTo(cx + r1*Math.cos(planetDir), cy+r1*Math.sin(planetDir));
+	ctx.lineTo(cx + r2*Math.cos(planetDir), cy+r2*Math.sin(planetDir));
+	ctx.stroke();
+	return;
+    }
     ctx.strokeStyle = "#ffffff";
     ctx.beginPath();
-    ctx.arc(cx - player.x + planet.x, cy - player.y + planet.y, planet.radius, 0, 2*Math.PI);
+    ctx.arc(cx + dx, cy + dy, planet.radius, 0, 2*Math.PI);
     ctx.stroke();
     textSize = planet.name.length * characterWidth;
     drawString(ctx, planet.name, cx - player.x + planet.x - textSize/2, cy - player.y + planet.y - 8);
 }
 
+function drawLaser(sx, sy, dir, len)
+{
+    ctx.strokeStyle = "#ff0000";
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx+len*Math.cos(dir), sy+len*Math.sin(dir));
+    ctx.stroke();
+}
+
+
 function drawPlayer()
 {
     drawPoly(rotatePoly(shipPoly, player.r), cx, cy);
     if(laser) {
-	ctx.strokeStyle = "#ff0000";
-	ctx.beginPath();
-	ctx.moveTo(cx, cy);
-	ctx.lineTo(cx+laserLen*Math.cos(player.r), cy+laserLen*Math.sin(player.r));
-	ctx.stroke();
+	drawLaser(cx,cy, player.r, laserLen);
 	laserCoolDown = 16;
     }
     if(laserCoolDown>0) laserCoolDown -=1;
@@ -196,6 +250,9 @@ function drawPlayer()
 function drawEnemy(e)
 {
     drawPoly(rotatePoly(enemyPoly, e.r), cx - player.x + e.x, cy - player.y + e.y);
+    if(e.laser) {
+	drawLaser(e.x - player.x + cx, e.y - player.y + cy, e.r, e.laserLen);
+    }
 }
 
 function drawStatusBar()
@@ -203,6 +260,30 @@ function drawStatusBar()
     ctx.fillStyle = "#000000";
     ctx.fillRect(480, 0, 640-480, SCREENHEIGHT);
     drawString(ctx, "Shield: "+player.shields, 480+8, 8);
+    drawString(ctx, "Speed: "+player.speed, 480+8, 8+16);
+    drawString(ctx, "Orbit: "+orbitCounter, 480+8, 8+32);
+    ctx.beginPath();
+    var radarSize = 64;
+    ctx.arc(radarx, radary, radarSize, 0, 2*Math.PI);
+    ctx.moveTo(radarx-8, radary);
+    ctx.lineTo(radarx+8, radary);
+    ctx.moveTo(radarx, radary-8);
+    ctx.lineTo(radarx, radary+8);
+    ctx.stroke();
+    var i;
+    var radarScale = 0.1;
+    for(i=0;i<enemies.length;i++) {
+	if(enemies.health <= 0) continue;
+	var e = enemies[i];
+	ctx.beginPath();
+	dx = (e.x - player.x)*radarScale;
+	dy = (e.y - player.y)*radarScale;
+	if(dx > radarSize || dx <-radarSize || dy > radarSize || dy <-radarSize) continue;
+	if(dx*dx+dy*dy > radarSize*radarSize) continue;
+	ctx.arc(dx+radarx,dy+radary, 4, 0, 2*Math.PI);
+	ctx.stroke();
+    }
+
 }
 
 function draw() {
@@ -294,8 +375,12 @@ function runEnemies() {
 	dy = player.y - e.y;
 	dir = Math.atan2(dy,dx);
 	dd = (dir-e.r);
-	e.r += 0.05*sgn(Math.sin(dd));
+	target = Math.sin(dd);
 	distsq = dx*dx+dy*dy;
+	if(Math.abs(target) < 10*degreesToRadians && distsq<256*256) {
+	    e.laser = (e.laserCoolDown <= 0);
+	}
+	e.r += 0.05*sgn(target);
 
 	if(distsq < 32*32 && e.speed>enemyDecel) {
 	    e.speed -= enemyDecel;
@@ -327,27 +412,58 @@ function runEnemies() {
 	if(distsq < 8*8) {
 	    collide(e, player);
 	}
+
+	if (e.laser) {
+	    e.laserCoolDown = 30;
+	    var result = findClosestApproach(e.x, e.y, e.r, [player]);
+	    var closest = result[0];
+	    var closestDist = result[1];
+	    if (closest>-1) {
+		if(Math.random() < shotEvadeChance) {
+		    player.shields -= 10;
+		    if(player.shields < 0) killPlayer();
+		    makeExplosion (player.x, player.y);
+		    e.laserLen = closestDist;
+		}
+	    }
+	}
+	if (e.laserCoolDown > 0) {
+	    e.laserCoolDown -= 1;
+	}
     }
 }
 
 function killPlayer()
 {
-    deadTimeout = 32;
+    if(deadTimeout == 0) deadTimeout = 32;
 }
 
 function runOrbit() {
     dx = planet.x - player.x;
     dy = planet.y - player.y;
+    // If we're a long way out of orbit, don't pull the ship.
+    distsq = dx*dx+dy*dy;
+    if(distsq > planet.radius*planet.radius*25) return;
     // Gravity applies a force which will skew the direction of the ship
     // So, original vector:
     vx = player.speed*Math.cos(player.r);
     vy = player.speed*Math.sin(player.r);
     // Now add on the gravitational vector
-    dist = Math.sqrt(dx*dx+dy*dy);
+    dist = Math.sqrt(distsq);
     if(dist < planet.radius) {
 	makeExplosion(player.x,player.y);
 	killPlayer();
     }
+
+    // If we're just a little bit outside the radius, start the orbit counter.
+    if(dist < (planet.radius+32)) {
+	orbitCounter +=1;
+    }
+    else
+    {
+	orbitCounter = 0;
+    }
+
     gx = dx * planet.mass / dist;
     gy = dy * planet.mass / dist;
     vx += gx;
@@ -356,8 +472,49 @@ function runOrbit() {
     player.r = Math.atan2(vy,vx);
 }
 
+function closestApproach(direction, dx, dy)
+{
+    lx = Math.cos(direction);
+    ly = Math.sin(direction);
+    return dx*lx+dy*ly;
+}
+
+function findClosestApproach(startx, starty, direction, thingList)
+{
+    var closestIndex = -1;
+    var closestDist = 1000;
+    for(i=0;i<thingList.length;i++) {
+	dx = thingList[i].x - startx;
+	dy = thingList[i].y - starty;
+	dist = dx*dx+dy*dy;
+	cp = closestApproach(direction, dx, dy);
+	linedist = dist-cp*cp;
+	if(linedist < thingList[i].radius*thingList[i].radius && cp > 0 && cp < closestDist) {
+	    closestDist = cp;
+	    closestIndex = i;
+	}
+    }
+    return [closestIndex, closestDist];
+}
+
+function spawnEnemies()
+{
+    if(enemies.length < 10) {
+	var r = Math.random()*Math.PI;
+	var dist = 512+Math.random()*1024;
+	for(i=0;i<5;i++)
+	{
+	    newX = player.x + Math.cos(r)*dist;
+	    newY = player.y + Math.sin(r)*dist;
+	    enemies.push ( new Enemy(newX + (i%3) * 64, newY + (i/3) * 64));
+	}
+    }
+
+}
+
 function runPlayer() {
     if(deadTimeout > 0) {
+	console.log( "Deadtimeout="+deadTimeout);
 	deadTimeout -=1;
 	if(deadTimeout <= 0) {
 	    mode = MODE_TITLE;
@@ -370,28 +527,16 @@ function runPlayer() {
     if(laser) {
 	// Look for enemies near the beam
 	var i;
-	var closestDist = 1000;
-	var closest = -1;
-	for(i=0;i<enemies.length;i++) {
-	    dx = enemies[i].x - player.x;
-	    dy = enemies[i].y - player.y;
-	    lx = Math.cos(player.r);
-	    ly = Math.sin(player.r);
-	    dist = dx*dx+dy*dy;
-	    cp = dx*lx+dy*ly;
-	    linedist = dist-cp*cp;
-	    if(linedist < enemies[i].radius*enemies[i].radius && cp > 0 && cp < closestDist) {
-		closestDist = cp;
-		closest = i;
-	    }
-	}
+	var result = findClosestApproach(player.x, player.y, player.r, enemies);
+	var closest = result[0];
+	var closestDist = result[1];
 	if (closest>-1) {
 	    enemies[closest].health -= 10;
 	    makeExplosion(enemies[closest].x, enemies[closest].y);
 	    laserLen = closestDist;
 	}
     }
-
+    if(frameCounter % 32 == 0 && player.shields < 100) player.shields += 1;
     runOrbit();
 }
 
@@ -427,6 +572,7 @@ function drawRepeat() {
 	}
 	if(frameCounter % 64 == 0) {
 	    purge();
+	    spawnEnemies();
 	}
     }
     draw();
