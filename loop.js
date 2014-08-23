@@ -8,12 +8,29 @@ var MODE_TITLE = 0;
 var MODE_PLAY  = 1;
 var MODE_WIN   = 2;
 var shipPoly = [ [8,0], [-8,4], [-8,-4] ];
+var enemyPoly = [ [8,8], [-8,8], [-8,-8], [8,-8] ];
+var enemyAccel = 0.01;
+var enemyDecel = 0.05;
+function sgn(x)
+{
+    if(x>0) return 1;
+    if(x<0) return -1;
+    return 0;
+}
 
 function getImage(name)
 {
     image = new Image();
     image.src = 'graphics/'+name+'.png';
     return image;
+}
+
+function Enemy(x,y)
+{
+    this.x = x;
+    this.y = y;
+    this.r = 0;
+    this.speed = 1;
 }
 
 function drawChar(context, c, x, y) 
@@ -59,6 +76,9 @@ function resetGame()
     y = 128;
     r = 0;
     speed = 1;
+    enemies = new Array();
+    for(i=0;i<1;i++)
+	enemies.push ( new Enemy(128+64*i,128) );
 }
 
 function init()
@@ -99,6 +119,11 @@ function drawPlayer()
     drawPoly(rotatePoly(shipPoly, r), x, y);
 }
 
+function drawEnemy(e)
+{
+    drawPoly(rotatePoly(enemyPoly, e.r), e.x, e.y);
+}
+
 function draw() {
     ctx.fillStyle = "#0000ff";
     ctx.fillRect(0, 0, SCREENWIDTH, SCREENHEIGHT);
@@ -109,7 +134,8 @@ function draw() {
     }
 
     drawPlayer (x,y);
-
+    for(i=0;i<enemies.length;i++)
+	drawEnemy(enemies[i]);
     if(mode == MODE_WIN) {
 	ctx.drawImage(winBitmap, 0, 0);
     }
@@ -126,11 +152,33 @@ function processKeys() {
     if(y > SCREENWIDTH - playerImage.height) y = SCREENHEIGHT - playerImage.height;
 }
 
+function runEnemies() {
+    for(i=0;i<enemies.length;i++) {
+	e = enemies[i];
+	e.x += e.speed * Math.cos(e.r);
+	e.y += e.speed * Math.sin(e.r);
+	dx = x - e.x;
+	dy = y - e.y;
+	dir = Math.atan2(dy,dx);
+	dd = (dir-e.r);
+	console.log("dd="+dd);
+	e.r += 0.1*sgn(Math.sin(dd));
+	dist = dx*dx+dy*dy;
+	if(dist < 32*32 && e.speed>enemyDecel) {
+	    e.speed -= enemyDecel;
+	}
+	if(dist > 64*64 && e.speed < 1) {
+	    e.speed += enemyAccel
+	}
+    }
+}
+
 function drawRepeat() {
     if(mode != MODE_TITLE) {
 	processKeys();
 	x += speed*Math.cos(r);
 	y += speed*Math.sin(r);
+	runEnemies();
     }
     draw();
     if(!stopRunloop) setTimeout('drawRepeat()',20);
