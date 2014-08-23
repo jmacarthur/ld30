@@ -11,6 +11,8 @@ var shipPoly = [ [8,0], [-8,4], [-8,-4] ];
 var enemyPoly = [ [8,8], [-8,8], [-8,-8], [8,-8] ];
 var enemyAccel = 0.01;
 var enemyDecel = 0.05;
+var planet = {x: 240, y:240, mass: 0.1, radius: 64};
+
 function sgn(x)
 {
     if(x>0) return 1;
@@ -122,6 +124,14 @@ function rotatePoly(original, radians)
     return newPoly;
 }
 
+function drawPlanet()
+{
+    ctx.strokeStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(planet.x, planet.y, planet.radius, 0, 2*Math.PI);
+    ctx.stroke();
+}
+
 function drawPlayer()
 {
     drawPoly(rotatePoly(shipPoly, r), x, y);
@@ -151,6 +161,7 @@ function draw() {
     }
 
     drawPlayer (x,y);
+    drawPlanet();
     for(i=0;i<enemies.length;i++) {
 	drawEnemy(enemies[i]);
     }
@@ -209,6 +220,24 @@ function runEnemies() {
     }
 }
 
+function runOrbit() {
+    dx = planet.x - x;
+    dy = planet.y - y;
+    // Gravity applies a force which will skew the direction of the ship
+    // So, original vector =
+    vx = speed*Math.cos(r);
+    vy = speed*Math.sin(r);
+    // Now add on the gravitational vector
+    dist = Math.sqrt(dx*dx+dy*dy);
+    gx = dx * planet.mass / dist;
+    gy = dy * planet.mass / dist;
+    vx += gx;
+    vy += gy;
+    // Correct heading
+    r = Math.atan2(vy,vx);
+
+}
+
 function runPlayer() {
     laserLen = 1000;
     x += speed*Math.cos(r);
@@ -236,6 +265,8 @@ function runPlayer() {
 	    laserLen = closestDist;
 	}
     }
+
+    runOrbit();
 }
 
 function drawRepeat() {
