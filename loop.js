@@ -79,8 +79,10 @@ function resetGame()
     speed = 1;
     enemies = new Array();
     var i;
-    for(i=0;i<5;i++)
+    for(i=0;i<10;i++)
 	enemies.push ( new Enemy(256+64*i,128) );
+    laser = false;
+    laserCoolDown = 0;
 }
 
 function init()
@@ -121,6 +123,13 @@ function rotatePoly(original, radians)
 function drawPlayer()
 {
     drawPoly(rotatePoly(shipPoly, r), x, y);
+    if(laser) {
+	ctx.strokeStyle = "#ff0000";
+	ctx.beginPath();
+	ctx.moveTo(x,y);
+	ctx.lineTo(x+1000*Math.cos(r), y+1000*Math.sin(r));
+	ctx.stroke();
+    }
 }
 
 function drawEnemy(e)
@@ -151,6 +160,7 @@ function processKeys() {
     if(keysDown[38] || keysDown[87]) speed += 0.1;
     if(keysDown[37] || keysDown[65]) r -= 0.1;
     if(keysDown[39] || keysDown[68]) r += 0.1;
+    laser = (keysDown[32] && laserCoolDown <= 0);
     if(x < 0) x = 0;
     if(x > SCREENWIDTH - playerImage.width)  x = SCREENHEIGHT - playerImage.width;
     if(y < 0) y = 0;
@@ -188,6 +198,7 @@ function runEnemies() {
 		dir = Math.atan2(dy,dx);
 		dd = (dir-e.r);
 		e.r -= 0.05*sgn(Math.sin(dd));
+		//if(e.speed > 0.5) e.speed -= enemyDecel;
 	    }
 	}
 
@@ -210,7 +221,8 @@ if (canvas.getContext('2d')) {
     ctx = canvas.getContext('2d');
     body.onkeydown = function (event) {
 	var c = event.keyCode;
-        keysDown[c] = 1;
+	console.log("Keydown: "+c);
+	keysDown[c] = 1;
 	if(c == 81) {
 	    stopRunloop=true;
 	}
