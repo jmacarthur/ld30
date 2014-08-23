@@ -104,10 +104,7 @@ function makeTitleBitmaps()
 
 function resetGame()
 {
-    x = 128;
-    y = 128;
-    r = 0;
-    speed = 1;
+    player = { x: 128, y: 128, r: 0, speed: 1, shields: 100 };
     enemies = new Array();
     var i;
     for(i=0;i<10;i++)
@@ -119,7 +116,6 @@ function resetGame()
 
     planet = starMap[0];
     explosions = new Array();
-    shields = 100;
 }
 
 function init()
@@ -167,7 +163,7 @@ function drawExplosions()
 	console.log("Drawing explosion at"+e.x+","+e.y);
 	ctx.strokeStyle = "#ffffff";
 	ctx.beginPath();
-	ctx.arc(cx - x + e.x, cy - y + e.y, 32-e.timeout, 0, 2*Math.PI);
+	ctx.arc(cx - player.x + e.x, cy - player.y + e.y, 32-e.timeout, 0, 2*Math.PI);
 	ctx.stroke();
     }
 }
@@ -176,20 +172,20 @@ function drawPlanet()
 {
     ctx.strokeStyle = "#ffffff";
     ctx.beginPath();
-    ctx.arc(cx - x + planet.x, cy - y + planet.y, planet.radius, 0, 2*Math.PI);
+    ctx.arc(cx - player.x + planet.x, cy - player.y + planet.y, planet.radius, 0, 2*Math.PI);
     ctx.stroke();
     textSize = planet.name.length * characterWidth;
-    drawString(ctx, planet.name, cx - x + planet.x - textSize/2, cy - y + planet.y - 8);
+    drawString(ctx, planet.name, cx - player.x + planet.x - textSize/2, cy - player.y + planet.y - 8);
 }
 
 function drawPlayer()
 {
-    drawPoly(rotatePoly(shipPoly, r), cx, cy);
+    drawPoly(rotatePoly(shipPoly, player.r), cx, cy);
     if(laser) {
 	ctx.strokeStyle = "#ff0000";
 	ctx.beginPath();
 	ctx.moveTo(cx, cy);
-	ctx.lineTo(cx+laserLen*Math.cos(r), cy+laserLen*Math.sin(r));
+	ctx.lineTo(cx+laserLen*Math.cos(player.r), cy+laserLen*Math.sin(player.r));
 	ctx.stroke();
 	laserCoolDown = 16;
     }
@@ -199,14 +195,14 @@ function drawPlayer()
 
 function drawEnemy(e)
 {
-    drawPoly(rotatePoly(enemyPoly, e.r), cx - x + e.x, cy - y + e.y);
+    drawPoly(rotatePoly(enemyPoly, e.r), cx - player.x + e.x, cy - player.y + e.y);
 }
 
 function drawStatusBar()
 {
     ctx.fillStyle = "#000000";
     ctx.fillRect(480, 0, 640-480, SCREENHEIGHT);
-    drawString(ctx, "Shield: "+shields, 480+8, 8);
+    drawString(ctx, "Shield: "+player.shields, 480+8, 8);
 }
 
 function draw() {
@@ -218,7 +214,7 @@ function draw() {
 	return;
     }
 
-    drawPlayer (x,y);
+    drawPlayer (player.x,player.y);
     drawPlanet();
     drawExplosions();
     for(i=0;i<enemies.length;i++) {
@@ -233,10 +229,10 @@ function draw() {
 }
 
 function processKeys() {
-    if((keysDown[40] || keysDown[83]) && speed > 0.2) speed -= 0.1;
-    if((keysDown[38] || keysDown[87]) && speed < 5.0) speed += 0.1;
-    if(keysDown[37] || keysDown[65]) r -= 0.1;
-    if(keysDown[39] || keysDown[68]) r += 0.1;
+    if((keysDown[40] || keysDown[83]) && player.speed > 0.2) player.speed -= 0.1;
+    if((keysDown[38] || keysDown[87]) && player.speed < 5.0) player.speed += 0.1;
+    if(keysDown[37] || keysDown[65]) player.r -= 0.1;
+    if(keysDown[39] || keysDown[68]) player.r += 0.1;
     laser = (keysDown[32] && laserCoolDown <= 0);
 }
 
@@ -278,8 +274,8 @@ function runEnemies() {
 	if(e.health <= 0) continue;
 	e.x += e.speed * Math.cos(e.r);
 	e.y += e.speed * Math.sin(e.r);
-	dx = x - e.x;
-	dy = y - e.y;
+	dx = player.x - e.x;
+	dy = player.y - e.y;
 	dir = Math.atan2(dy,dx);
 	dd = (dir-e.r);
 	e.r += 0.05*sgn(Math.sin(dd));
@@ -326,15 +322,15 @@ function runEnemies() {
 	// Collisions with player
 	if(distsq < 8*8) {
 	    // Collision, damage both
-	    shields -= 10;
+	    player.shields -= 10;
 	    e.health -= 10;
-	    midx = (x+e.x)/2;
-	    midy = (y+e.y)/2;
-	    dx = x - midx;
-	    dy = y - midy;
+	    midx = (player.x+e.x)/2;
+	    midy = (player.y+e.y)/2;
+	    dx = player.x - midx;
+	    dy = player.y - midy;
 	    // Repulsive kick:
-	    x += dx;
-	    y += dy;
+	    player.x += dx;
+	    player.y += dy;
 	    e.x -= dx;
 	    e.y -= dy;
 	    makeExplosion(midx, midy);
@@ -349,16 +345,16 @@ function killPlayer()
 }
 
 function runOrbit() {
-    dx = planet.x - x;
-    dy = planet.y - y;
+    dx = planet.x - player.x;
+    dy = planet.y - player.y;
     // Gravity applies a force which will skew the direction of the ship
     // So, original vector:
-    vx = speed*Math.cos(r);
-    vy = speed*Math.sin(r);
+    vx = player.speed*Math.cos(player.r);
+    vy = player.speed*Math.sin(player.r);
     // Now add on the gravitational vector
     dist = Math.sqrt(dx*dx+dy*dy);
     if(dist < planet.radius) {
-	makeExplosion(x,y);
+	makeExplosion(player.x,player.y);
 	killPlayer();
     }
     gx = dx * planet.mass / dist;
@@ -366,7 +362,7 @@ function runOrbit() {
     vx += gx;
     vy += gy;
     // Correct heading
-    r = Math.atan2(vy,vx);
+    player.r = Math.atan2(vy,vx);
 }
 
 function runPlayer() {
@@ -378,18 +374,18 @@ function runPlayer() {
 	return;
     }
     laserLen = 1000;
-    x += speed*Math.cos(r);
-    y += speed*Math.sin(r);
+    player.x += player.speed*Math.cos(player.r);
+    player.y += player.speed*Math.sin(player.r);
     if(laser) {
 	// Look for enemies near the beam
 	var i;
 	var closestDist = 1000;
 	var closest = -1;
 	for(i=0;i<enemies.length;i++) {
-	    dx = enemies[i].x - x;
-	    dy = enemies[i].y - y;
-	    lx = Math.cos(r);
-	    ly = Math.sin(r);
+	    dx = enemies[i].x - player.x;
+	    dy = enemies[i].y - player.y;
+	    lx = Math.cos(player.r);
+	    ly = Math.sin(player.r);
 	    dist = dx*dx+dy*dy;
 	    cp = dx*lx+dy*ly;
 	    linedist = dist-cp*cp;
@@ -416,8 +412,8 @@ function updateStar()
     var closest = 0;
     var i;
     for(i=0;i<starMap.length;i++) {
-	dx = starMap[i].x - x;
-	dy = starMap[i].y - y;
+	dx = starMap[i].x - player.x;
+	dy = starMap[i].y - player.y;
 	distsq = dx*dx+dy*dy;
 	if(i==0 || distsq < closestDistsq) {
 	    closestDistsq = distsq;
@@ -425,7 +421,7 @@ function updateStar()
 	}
     }
     planet = starMap[closest];
-    console.log("At "+x+","+y+", closest planet is "+planet.name+", "+Math.sqrt(closestDistsq)+" miles away");
+    console.log("At "+player.x+","+player.y+", closest planet is "+planet.name+", "+Math.sqrt(closestDistsq)+" miles away");
 }
 
 function drawRepeat() {
