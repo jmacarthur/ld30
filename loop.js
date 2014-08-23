@@ -4,6 +4,8 @@ var body = document.getElementsByTagName('body')[0];
 var keysDown = new Array();
 var SCREENWIDTH  = 480;
 var SCREENHEIGHT = 480;
+cx = SCREENWIDTH/2;
+cy = SCREENWIDTH/2;
 var MODE_TITLE = 0;
 var MODE_PLAY  = 1;
 var MODE_WIN   = 2;
@@ -11,7 +13,7 @@ var shipPoly = [ [8,0], [-8,4], [-8,-4] ];
 var enemyPoly = [ [8,8], [-8,8], [-8,-8], [8,-8] ];
 var enemyAccel = 0.01;
 var enemyDecel = 0.05;
-
+characterWidth = 12;
 function Planet(name, x, y, mass, radius)
 {
     this.name = name; this.x = x; this.y = y; this.mass = mass;
@@ -19,7 +21,8 @@ function Planet(name, x, y, mass, radius)
 }
 
 var starMap = [
-    new Planet("UNQUHEX", 51252.4729724,62263.5669664, 0.1, 64),
+//    new Planet("UNQUHEX", 51252.4729724,62263.5669664, 0.1, 64,)
+    new Planet("UNQUHEX", 256,256, 0.1, 64),
     new Planet("OLAOYRI", 31161.6740694,32781.9211199, 0.1, 64),
     new Planet("ORCAMEC", 31210.6883079,346.27624567, 0.1, 64),
     new Planet("OLAOYRI", 14479.4387553,5512.81099972, 0.1, 64),
@@ -61,7 +64,7 @@ function drawChar(context, c, x, y)
 {
     c = c.charCodeAt(0);
     if(c > 0) {
-        context.drawImage(bitfont, c*6, 0, 6,8, x, y, 12, 16);
+        context.drawImage(bitfont, c*6, 0, 6,8, x, y, characterWidth, 16);
     }
 }
 
@@ -106,6 +109,7 @@ function resetGame()
 	enemies.push ( new Enemy(256+64*i,128) );
     laser = false;
     laserCoolDown = 0;
+    frameCounter = 0;
 }
 
 function init()
@@ -148,18 +152,20 @@ function drawPlanet()
 {
     ctx.strokeStyle = "#ffffff";
     ctx.beginPath();
-    ctx.arc(planet.x, planet.y, planet.radius, 0, 2*Math.PI);
+    ctx.arc(cx - x + planet.x, cy - y + planet.y, planet.radius, 0, 2*Math.PI);
     ctx.stroke();
+    textSize = planet.name.length * characterWidth;
+    drawString(ctx, planet.name, cx - x + planet.x - textSize/2, cy - y + planet.y - 8);
 }
 
 function drawPlayer()
 {
-    drawPoly(rotatePoly(shipPoly, r), x, y);
+    drawPoly(rotatePoly(shipPoly, r), cx, cy);
     if(laser) {
 	ctx.strokeStyle = "#ff0000";
 	ctx.beginPath();
-	ctx.moveTo(x,y);
-	ctx.lineTo(x+laserLen*Math.cos(r), y+laserLen*Math.sin(r));
+	ctx.moveTo(cx, cy);
+	ctx.lineTo(cx+laserLen*Math.cos(r), cy+laserLen*Math.sin(r));
 	ctx.stroke();
 	laserCoolDown = 16;
     }
@@ -168,7 +174,7 @@ function drawPlayer()
 
 function drawEnemy(e)
 {
-    drawPoly(rotatePoly(enemyPoly, e.r), e.x, e.y);
+    drawPoly(rotatePoly(enemyPoly, e.r), cx - x + e.x, cy - y + e.y);
 }
 
 function draw() {
@@ -290,17 +296,19 @@ function updateStar()
     // This makes 'planet' point to nearest entry in the starmap. It doesn't need to
     // be run every cycle - 1/100 or something would be fine.
     var closestDistsq;
+    var closest = 0;
     var i;
     for(i=0;i<starMap.length;i++) {
 	dx = starMap[i].x - x;
 	dy = starMap[i].y - y;
 	distsq = dx*dx+dy*dy;
-	if(i==0 || distsq < closest) {
+	if(i==0 || distsq < closestDistsq) {
 	    closestDistsq = distsq;
 	    closest = i;
 	}
     }
     planet = starMap[closest];
+    console.log("At "+x+","+y+", closest planet is "+planet.name+", "+Math.sqrt(closestDistsq)+" miles away");
 }
 
 function drawRepeat() {
@@ -308,7 +316,10 @@ function drawRepeat() {
 	processKeys();
 	runPlayer();
 	runEnemies();
-	//updateStar();
+	frameCounter += 1;
+	if(frameCounter % 128 == 0) {
+	    updateStar();
+	}
     }
     draw();
     if(!stopRunloop) setTimeout('drawRepeat()',20);
