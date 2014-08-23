@@ -196,10 +196,6 @@ function processKeys() {
     if(keysDown[37] || keysDown[65]) r -= 0.1;
     if(keysDown[39] || keysDown[68]) r += 0.1;
     laser = (keysDown[32] && laserCoolDown <= 0);
-    if(x < 0) x = 0;
-    if(x > SCREENWIDTH - playerImage.width)  x = SCREENHEIGHT - playerImage.width;
-    if(y < 0) y = 0;
-    if(y > SCREENWIDTH - playerImage.height) y = SCREENHEIGHT - playerImage.height;
 }
 
 function runEnemies() {
