@@ -32,6 +32,7 @@ function Enemy(sx,sy)
     this.y = sy;
     this.r = 0;
     this.speed = 1;
+    this.radius = 8;
 }
 
 function drawChar(context, c, x, y) 
@@ -91,6 +92,7 @@ function init()
     playerImage = getImage("player");
     springSound = new Audio("audio/boing.wav");
     makeTitleBitmaps();
+    ctx.lineWidth = 2;
     return true;
 }
 
@@ -127,9 +129,11 @@ function drawPlayer()
 	ctx.strokeStyle = "#ff0000";
 	ctx.beginPath();
 	ctx.moveTo(x,y);
-	ctx.lineTo(x+1000*Math.cos(r), y+1000*Math.sin(r));
+	ctx.lineTo(x+laserLen*Math.cos(r), y+laserLen*Math.sin(r));
 	ctx.stroke();
+	laserCoolDown = 16;
     }
+    if(laserCoolDown>0) laserCoolDown -=1;
 }
 
 function drawEnemy(e)
@@ -205,11 +209,39 @@ function runEnemies() {
     }
 }
 
+function runPlayer() {
+    laserLen = 1000;
+    x += speed*Math.cos(r);
+    y += speed*Math.sin(r);
+    if(laser) {
+	// Look for enemies near the beam
+	var i;
+	var closestDist = 1000;
+	var closest = -1;
+	for(i=0;i<enemies.length;i++) {
+	    dx = enemies[i].x - x;
+	    dy = enemies[i].y - y;
+	    lx = Math.cos(r);
+	    ly = Math.sin(r);
+	    dist = dx*dx+dy*dy;
+	    cp = dx*lx+dy*ly;
+	    linedist = dist-cp*cp;
+	    if(linedist < enemies[i].radius*enemies[i].radius && cp > 0 && cp < closestDist) {
+		closestDist = cp;
+		closest = i;
+	    }
+	}
+	if (closest>-1) {
+	    enemies[closest].y += 256;
+	    laserLen = closestDist;
+	}
+    }
+}
+
 function drawRepeat() {
     if(mode != MODE_TITLE) {
 	processKeys();
-	x += speed*Math.cos(r);
-	y += speed*Math.sin(r);
+	runPlayer();
 	runEnemies();
     }
     draw();
