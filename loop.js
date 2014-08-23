@@ -166,14 +166,31 @@ function runEnemies() {
 	dy = y - e.y;
 	dir = Math.atan2(dy,dx);
 	dd = (dir-e.r);
-	e.r += 0.1*sgn(Math.sin(dd));
+	e.r += 0.05*sgn(Math.sin(dd));
 	dist = dx*dx+dy*dy;
+
 	if(dist < 32*32 && e.speed>enemyDecel) {
 	    e.speed -= enemyDecel;
 	}
 	if(dist > 64*64 && e.speed < 1) {
 	    e.speed += enemyAccel;
 	}
+
+	// If I'm too close to another ship, move away
+	// TODO: this is O(n^2)!
+	for(j=0;j<enemies.length;j++) {
+	    if(j==i) continue;
+	    var e1 = enemies[j];
+	    var dx = e1.x - e.x;
+	    var dy = e1.y - e.y;
+	    var dist = dx*dx+dy*dy;
+	    if(dist < 64*64)  {
+		dir = Math.atan2(dy,dx);
+		dd = (dir-e.r);
+		e.r -= 0.05*sgn(Math.sin(dd));
+	    }
+	}
+
     }
 }
 
