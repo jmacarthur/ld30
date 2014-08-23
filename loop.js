@@ -2,11 +2,12 @@ var canvas = document.getElementsByTagName('canvas')[0];
 var ctx = null;
 var body = document.getElementsByTagName('body')[0];
 var keysDown = new Array();
-var SCREENWIDTH  = 640;
+var SCREENWIDTH  = 480;
 var SCREENHEIGHT = 480;
 var MODE_TITLE = 0;
 var MODE_PLAY  = 1;
 var MODE_WIN   = 2;
+var shipPoly = [ [8,0], [-8,4], [-8,-4] ];
 
 function getImage(name)
 {
@@ -56,6 +57,8 @@ function resetGame()
 {
     x = 128;
     y = 128;
+    r = 0;
+    speed = 1;
 }
 
 function init()
@@ -67,6 +70,35 @@ function init()
     return true;
 }
 
+function drawPoly(poly, offsetx, offsety)
+{
+    ctx.strokeStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(poly[0][0]+offsetx, poly[0][1]+offsety);
+    for(i=1;i<poly.length;i++) {
+	ctx.lineTo(poly[i][0]+offsetx, poly[i][1]+offsety);
+    }
+    ctx.lineTo(poly[0][0]+offsetx, poly[0][1]+offsety);
+    ctx.stroke();
+}
+
+function rotatePoly(original, radians)
+{
+    var newPoly = new Array();
+    for(i=0;i<original.length;i++) {
+	ox = original[i][0];
+	oy = original[i][1];
+	newPoly.push( [ox*Math.cos(radians) - oy*Math.sin(radians),
+		      oy*Math.cos(radians) + ox*Math.sin(radians) ]);
+    }
+    return newPoly;
+}
+
+function drawPlayer()
+{
+    drawPoly(rotatePoly(shipPoly, r), x, y);
+}
+
 function draw() {
     ctx.fillStyle = "#0000ff";
     ctx.fillRect(0, 0, SCREENWIDTH, SCREENHEIGHT);
@@ -76,7 +108,7 @@ function draw() {
 	return;
     }
 
-    ctx.drawImage(playerImage, x, y);
+    drawPlayer (x,y);
 
     if(mode == MODE_WIN) {
 	ctx.drawImage(winBitmap, 0, 0);
@@ -84,10 +116,10 @@ function draw() {
 }
 
 function processKeys() {
-    if(keysDown[40] || keysDown[83]) y += 4;
-    if(keysDown[38] || keysDown[87]) y -= 4;
-    if(keysDown[37] || keysDown[65]) x -= 4;
-    if(keysDown[39] || keysDown[68]) x += 4;
+    if(keysDown[40] || keysDown[83]) speed -= 0.1;
+    if(keysDown[38] || keysDown[87]) speed += 0.1;
+    if(keysDown[37] || keysDown[65]) r -= 0.1;
+    if(keysDown[39] || keysDown[68]) r += 0.1;
     if(x < 0) x = 0;
     if(x > SCREENWIDTH - playerImage.width)  x = SCREENHEIGHT - playerImage.width;
     if(y < 0) y = 0;
@@ -97,6 +129,8 @@ function processKeys() {
 function drawRepeat() {
     if(mode != MODE_TITLE) {
 	processKeys();
+	x += speed*Math.cos(r);
+	y += speed*Math.sin(r);
     }
     draw();
     if(!stopRunloop) setTimeout('drawRepeat()',20);
