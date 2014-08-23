@@ -25,10 +25,11 @@ function getImage(name)
     return image;
 }
 
-function Enemy(x,y)
+function Enemy(sx,sy)
 {
-    this.x = x;
-    this.y = y;
+    console.log("New enemy at "+sx+","+sy);
+    this.x = sx;
+    this.y = sy;
     this.r = 0;
     this.speed = 1;
 }
@@ -77,8 +78,9 @@ function resetGame()
     r = 0;
     speed = 1;
     enemies = new Array();
-    for(i=0;i<1;i++)
-	enemies.push ( new Enemy(128+64*i,128) );
+    var i;
+    for(i=0;i<5;i++)
+	enemies.push ( new Enemy(256+64*i,128) );
 }
 
 function init()
@@ -95,6 +97,7 @@ function drawPoly(poly, offsetx, offsety)
     ctx.strokeStyle = "#ffffff";
     ctx.beginPath();
     ctx.moveTo(poly[0][0]+offsetx, poly[0][1]+offsety);
+    var i;
     for(i=1;i<poly.length;i++) {
 	ctx.lineTo(poly[i][0]+offsetx, poly[i][1]+offsety);
     }
@@ -105,6 +108,7 @@ function drawPoly(poly, offsetx, offsety)
 function rotatePoly(original, radians)
 {
     var newPoly = new Array();
+    var i;
     for(i=0;i<original.length;i++) {
 	ox = original[i][0];
 	oy = original[i][1];
@@ -134,8 +138,9 @@ function draw() {
     }
 
     drawPlayer (x,y);
-    for(i=0;i<enemies.length;i++)
+    for(i=0;i<enemies.length;i++) {
 	drawEnemy(enemies[i]);
+    }
     if(mode == MODE_WIN) {
 	ctx.drawImage(winBitmap, 0, 0);
     }
@@ -161,14 +166,13 @@ function runEnemies() {
 	dy = y - e.y;
 	dir = Math.atan2(dy,dx);
 	dd = (dir-e.r);
-	console.log("dd="+dd);
 	e.r += 0.1*sgn(Math.sin(dd));
 	dist = dx*dx+dy*dy;
 	if(dist < 32*32 && e.speed>enemyDecel) {
 	    e.speed -= enemyDecel;
 	}
 	if(dist > 64*64 && e.speed < 1) {
-	    e.speed += enemyAccel
+	    e.speed += enemyAccel;
 	}
     }
 }
