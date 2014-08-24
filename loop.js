@@ -11,6 +11,7 @@ var MODE_PLAY  = 1;
 var MODE_WIN   = 2;
 var shipPoly = [ [8,0], [-8,4], [-8,-4] ];
 var enemyPoly = [ [8,6], [-8,8], [-8,-8], [8,-6] ];
+var pickupPoly = [ [8,8], [-8,8], [-8,-8], [8,-8] ];
 var explodePoly = [
     [16.000000,0.000000],
     [7.391036,3.061467],
@@ -52,23 +53,22 @@ function Planet(name, x, y, mass, radius)
 }
 
 var starMap = [
-//    new Planet("UNQUHEX", 51252.4729724,62263.5669664, 0.1, 64,)
     new Planet("UNQUHEX", 256,256, 0.1, 128),
-    new Planet("OLAOYRI", 31161.6740694,32781.9211199, 0.1, 64+Math.random()*64),
-    new Planet("ORCAMEC", 31210.6883079,346.27624567, 0.1, 64+Math.random()*64),
-    new Planet("OLAOYRI", 14479.4387553,5512.81099972, 0.1, 64+Math.random()*64),
-    new Planet("ILKUOUC", 17507.3398211,24201.9298703, 0.1, 64+Math.random()*64),
-    new Planet("PREO",    27097.5082089,29768.19066, 0.1, 64+Math.random()*64),
-    new Planet("TESAUS",  5436.93976607,79.7122271237, 0.1, 64+Math.random()*64),
-    new Planet("EXQUCXEE",36710.6468034,45688.9802764, 0.1, 64+Math.random()*64),
-    new Planet("TISGEAEU",53958.1179706,63367.7590348, 0.1, 64+Math.random()*64),
-    new Planet("AREUCAW", 21736.1052383,2496.67420002, 0.1, 64+Math.random()*64)
+    new Planet("OLAOYRI", 31161.6740694,32781.9211199, 0.1, 97),
+    new Planet("ORCAMEC", 31210.6883079,346.27624567, 0.1, 127),
+    new Planet("OLAOYRI", 14479.4387553,5512.81099972, 0.1, 83),
+    new Planet("ILKUOUC", 17507.3398211,24201.9298703, 0.1, 66),
+    new Planet("PREO",    27097.5082089,29768.19066, 0.1, 256),
+    new Planet("TESAUS",  5436.93976607,79.7122271237, 0.1, 111),
+    new Planet("EXQUCXEE",36710.6468034,45688.9802764, 0.1, 73),
+    new Planet("TISGEAEU",53958.1179706,63367.7590348, 0.1, 90),
+    new Planet("AREUCAW", 21736.1052383,2496.67420002, 0.1, 93)
 ];
 
 function Explosion(x,y)
 {
     this.x = x; this.y = y;
-    this.timeout = 32;
+    this.timeout = 16;
 }
 
 function sgn(x)
@@ -118,7 +118,7 @@ function drawString(context, string, x, y) {
 
 function paintTitleBitmaps()
 {
-    drawString(titlectx, ' is a demo of the JavaScript/HTML5 game loop',32,32);
+    drawString(titlectx, ' a demo of the JavaScript/HTML5 game loop',32,32);
     drawString(winctx, 'Your game should always have an ending',32,32);
 }
 
@@ -149,7 +149,7 @@ function resetGame()
     planet = starMap[0];
 
     // Start the player in orbit around the planet
-    player = { x: planet.x, y: planet.y-planet.radius-16, r: 0, speed: 3.8, shields: 100, radius: 8 };
+    player = { x: planet.x, y: planet.y-planet.radius-16, r: 0, speed: 3.8, health: 100, radius: 8 };
 
     explosions = new Array();
     tradeCursor = 0;
@@ -165,6 +165,7 @@ function resetGame()
     for(var i=0;i<dustParticles;i++) {
 	dust[i]  = { x: Math.random()*480, y: Math.random()*480 };
     }
+    pickups = new Array();
 }
 
 function init()
@@ -177,9 +178,9 @@ function init()
     return true;
 }
 
-function drawPoly(poly, offsetx, offsety)
+function drawPoly(poly, offsetx, offsety, col)
 {
-    ctx.strokeStyle = "#ffffff";
+    ctx.strokeStyle = col;
     ctx.beginPath();
     ctx.moveTo(poly[0][0]+offsetx, poly[0][1]+offsety);
     var i;
@@ -221,7 +222,7 @@ function drawExplosions()
 	var e = explosions[i]
 	if(e.timeout <= 0) continue;
 	var rotExplodePoly = scalePoly(rotatePoly(explodePoly, e.timeout * Math.PI/32), 16.0/(e.timeout+16));
-	drawPoly(rotExplodePoly, cx - player.x + e.x, cy - player.y + e.y);
+	drawPoly(rotExplodePoly, cx - player.x + e.x, cy - player.y + e.y, "#ffff00");
     }
 }
 
@@ -249,7 +250,7 @@ function drawPlanet()
 	ctx.moveTo(markerx, markery);
 	ctx.lineTo(cx + r2*Math.cos(planetDir), cy+r2*Math.sin(planetDir));
 	ctx.stroke();
-	dist = Math.sqrt(dx*dx+dy+dy);
+	dist = Math.sqrt(dx*dx+dy*dy);
 	drawString(ctx, planet.name, markerx - 3*planet.name.length, markery-8);
 	drawString(ctx, dist.toFixed(0), markerx - 3*planet.name.length, markery);
 	return;
@@ -273,7 +274,7 @@ function drawLaser(sx, sy, dir, len)
 
 function drawPlayer()
 {
-    drawPoly(rotatePoly(shipPoly, player.r), cx, cy);
+    drawPoly(rotatePoly(shipPoly, player.r), cx, cy, "#ffffff");
     if(laser) {
 	drawLaser(cx,cy, player.r, laserLen);
 	laserCoolDown = 16;
@@ -284,19 +285,42 @@ function drawPlayer()
 
 function drawEnemy(e)
 {
-    drawPoly(rotatePoly(enemyPoly, e.r), cx - player.x + e.x, cy - player.y + e.y);
+    drawPoly(rotatePoly(enemyPoly, e.r), cx - player.x + e.x, cy - player.y + e.y, "#ffffff");
     if(e.laser) {
 	drawLaser(e.x - player.x + cx, e.y - player.y + cy, e.r, e.laserLen);
     }
 }
 
+function drawRect(x,y,w,h,stroke)
+{
+    ctx.strokeStyle = stroke;
+    ctx.beginPath();
+    ctx.rect(x,y,w,h);
+    ctx.stroke();
+}
+
 function drawStatusBar()
 {
     ctx.fillStyle = "#000000";
+    ctx.strokeStyle = "#ffffff";
     ctx.fillRect(480, 0, 640-480, SCREENHEIGHT);
-    drawString(ctx, "Shield: "+player.shields, 480+8, 8);
-    drawString(ctx, "Speed: "+player.speed.toFixed(1), 480+8, 8+8);
-    drawString(ctx, "Credit: "+credit.toFixed(1), 480+8, 8+16);
+    drawString(ctx, "Shield", 480+8, 8);
+    if(player.health < 34) shieldCol = "#ff0000";
+    else if(player.health < 67)	shieldCol = "#ffff00";
+    else shieldCol = "#00ff00";
+    drawRect(480+48, 8, 100, 10, "#ffffff");
+    console.log("shield: "+player.health);
+    ctx.fillStyle = shieldCol;
+    ctx.fillRect(480+48, 8,player.health, 8);
+
+    drawString(ctx, "Speed ", 480+8, 24);
+    drawRect(480+48, 24, 10.1*8+2, 10, "#ffffff");
+    ctx.fillStyle = "#00ff00";
+    ctx.fillRect(480+48, 26,player.speed*8, 8);
+
+
+    drawRect
+    drawString(ctx, "Credit: "+credit.toFixed(1), 480+8, 48);
     ctx.beginPath();
     var radarSize = 64;
     ctx.arc(radarx, radary, radarSize, 0, 2*Math.PI);
@@ -305,6 +329,21 @@ function drawStatusBar()
     ctx.moveTo(radarx, radary-8);
     ctx.lineTo(radarx, radary+8);
     ctx.stroke();
+
+    if(orbitCounter > 0 && !trading) {
+	drawString(ctx, "COMMS LINK", 480+8, 96);
+	ctx.fillStyle = "#00ff00";
+	ctx.fillRect(480+8, 104, orbitCounter, 8);
+	drawRect(480+8, 104, 128, 8, "#ffffff");
+    }
+    else if(tradeCountdown > 0) {
+	drawString(ctx, "GOODS TRANSFER", 480+8, 96);
+	ctx.fillStyle = "#00ff00";
+	ctx.fillRect(480+8, 104, 128 - tradeCountdown, 8);
+	drawRect(480+8, 104, 128, 8, "#ffffff");
+    }
+
+
     var i;
     var radarScale = 0.1;
     for(i=0;i<enemies.length;i++) {
@@ -371,9 +410,20 @@ function drawDust()
     }
 }
 
+function drawPickups()
+{
+    for(var i=0;i<pickups.length;i++) {
+	p = pickups[i];
+	if(p.collected) continue;
+	drawPoly(rotatePoly(pickupPoly, (frameCounter/8)%(Math.PI*2)), p.x - player.x + cx, p.y - player.y + cy, "#00ff00");
+    }
+}
+
 function drawMap()
 {
-
+    ctx.globalAlpha = 0.8;
+    ctx.fillRect(0, 0, SCREENWIDTH, SCREENHEIGHT);
+    ctx.globalAlpha = 1.0;
     mapScale = 0.01;
     for(var i=0;i<starMap.length;i++) {
 	var p = starMap[i];
@@ -400,7 +450,7 @@ function draw() {
 	if(enemies[i].health <= 0) continue;
 	drawEnemy(enemies[i]);
     }
-    if(keysDown[77]) drawMap()
+    drawPickups();
     drawStatusBar();
     newTradingState = (orbitCounter > 120);
     if(newTradingState && !trading) {
@@ -414,6 +464,7 @@ function draw() {
     trading = newTradingState;
 
     drawTradingScreen();
+    if(keysDown[77]) drawMap()
 
     if(mode == MODE_WIN) {
 	ctx.drawImage(winBitmap, 0, 0);
@@ -448,6 +499,12 @@ function purge()
 	    newExplosions.push(explosions[i]);
     }
     explosions = newExplosions;
+    var newPickups = new Array();
+    for(i=0;i<pickups.length;i++) {
+	if(!pickups[i].collected)
+	    newPickups.push(pickups[i]);
+    }
+    pickups = newPickups;
 }
 
 function runExplosions()
@@ -459,12 +516,20 @@ function runExplosions()
     }
 }
 
+function makePickup(px,py)
+{
+    pickups.push( { x: px, y: py, dx: Math.random()-0.5, dy: Math.random()-0.5 , r: 0});
+}
+
 function collide(e1, e2)
 {
     e1.health -= 10;
     e2.health -= 10;
     var midx = (e1.x+e2.x)/2;
     var midy = (e1.y+e2.y)/2;
+    if(e1.health <= 0 || e2.health <= 0) {
+	makePickup(midx,midy);
+    }
     var dx = e1.x - midx;
     var dy = e1.y - midy;
     // Repulsive kick:
@@ -538,6 +603,7 @@ function runEnemies() {
 	// Collisions with player
 	if(distsq < 8*8) {
 	    collide(e, player);
+	    if(player.health <= 0) killPlayer();
 	}
 
 	if (e.laser) {
@@ -547,8 +613,8 @@ function runEnemies() {
 	    var closestDist = result[1];
 	    if (closest>-1) {
 		if(Math.random() < shotEvadeChance) {
-		    player.shields -= 1;
-		    if(player.shields < 0) killPlayer();
+		    player.health -= 5;
+		    if(player.health < 0) killPlayer();
 		    makeExplosion (player.x, player.y);
 		    e.laserLen = closestDist;
 		}
@@ -626,10 +692,10 @@ function findClosestApproach(startx, starty, direction, thingList)
 
 function spawnEnemies()
 {
-    if(enemies.length < 10) {
+    if(enemies.length < 1) {
 	var r = Math.random()*Math.PI;
 	var dist = 512+Math.random()*1024;
-	for(i=0;i<5;i++)
+	for(i=0;i<Math.random()*5;i++)
 	{
 	    newX = player.x + Math.cos(r)*dist;
 	    newY = player.y + Math.sin(r)*dist;
@@ -658,11 +724,26 @@ function runPlayer() {
 	var closestDist = result[1];
 	if (closest>-1) {
 	    enemies[closest].health -= 10;
+	    if(enemies[closest].health <= 0) makePickup(enemies[closest].x,enemies[closest].y);
+
 	    makeExplosion(enemies[closest].x, enemies[closest].y);
 	    laserLen = closestDist;
 	}
     }
-    if(frameCounter % 32 == 0 && player.shields < 100) player.shields += 1;
+
+    // Check for pickups
+    for(var i=0;i<pickups.length;i++) {
+	var p = pickups[i];
+	if(p.collected) continue;
+	dx = p.x - player.x;
+	dy = p.y - player.y;
+	if(dx*dx+dy*dy < 16*16) {
+	    pickups[i].collected = true;
+	    credit += 30;
+	}
+    }
+    if(frameCounter % 32 == 0 && player.health < 100)
+	player.health += (orbitCounter > 0)?2:1;
     runOrbit();
 
     if(tradeCountdown > 0) {
