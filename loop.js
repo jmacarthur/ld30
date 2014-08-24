@@ -421,7 +421,8 @@ function drawPickups()
 
 function drawMap()
 {
-    ctx.globalAlpha = 0.8;
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, SCREENWIDTH, SCREENHEIGHT);
     ctx.globalAlpha = 1.0;
     mapScale = 0.01;
