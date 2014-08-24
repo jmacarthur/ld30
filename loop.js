@@ -53,16 +53,16 @@ function Planet(name, x, y, mass, radius)
 
 var starMap = [
 //    new Planet("UNQUHEX", 51252.4729724,62263.5669664, 0.1, 64,)
-    new Planet("UNQUHEX", 256,256, 0.1, 64),
-    new Planet("OLAOYRI", 31161.6740694,32781.9211199, 0.1, 64),
-    new Planet("ORCAMEC", 31210.6883079,346.27624567, 0.1, 64),
-    new Planet("OLAOYRI", 14479.4387553,5512.81099972, 0.1, 64),
-    new Planet("ILKUOUC", 17507.3398211,24201.9298703, 0.1, 64),
-    new Planet("PREO",    27097.5082089,29768.19066, 0.1, 64),
-    new Planet("TESAUS",  5436.93976607,79.7122271237, 0.1, 64),
-    new Planet("EXQUCXEE",36710.6468034,45688.9802764, 0.1, 64),
-    new Planet("TISGEAEU",53958.1179706,63367.7590348, 0.1, 64),
-    new Planet("AREUCAW", 21736.1052383,2496.67420002, 0.1, 64)
+    new Planet("UNQUHEX", 256,256, 0.1, 128),
+    new Planet("OLAOYRI", 31161.6740694,32781.9211199, 0.1, 64+Math.random()*64),
+    new Planet("ORCAMEC", 31210.6883079,346.27624567, 0.1, 64+Math.random()*64),
+    new Planet("OLAOYRI", 14479.4387553,5512.81099972, 0.1, 64+Math.random()*64),
+    new Planet("ILKUOUC", 17507.3398211,24201.9298703, 0.1, 64+Math.random()*64),
+    new Planet("PREO",    27097.5082089,29768.19066, 0.1, 64+Math.random()*64),
+    new Planet("TESAUS",  5436.93976607,79.7122271237, 0.1, 64+Math.random()*64),
+    new Planet("EXQUCXEE",36710.6468034,45688.9802764, 0.1, 64+Math.random()*64),
+    new Planet("TISGEAEU",53958.1179706,63367.7590348, 0.1, 64+Math.random()*64),
+    new Planet("AREUCAW", 21736.1052383,2496.67420002, 0.1, 64+Math.random()*64)
 ];
 
 function Explosion(x,y)
@@ -118,7 +118,7 @@ function drawString(context, string, x, y) {
 
 function paintTitleBitmaps()
 {
-    drawString(titlectx, 'This is a demo of the JavaScript/HTML5 game loop',32,32);
+    drawString(titlectx, ' is a demo of the JavaScript/HTML5 game loop',32,32);
     drawString(winctx, 'Your game should always have an ending',32,32);
 }
 
@@ -149,7 +149,7 @@ function resetGame()
     planet = starMap[0];
 
     // Start the player in orbit around the planet
-    player = { x: planet.x, y: planet.y-planet.radius-32, r: 0, speed: 3, shields: 100, radius: 8 };
+    player = { x: planet.x, y: planet.y-planet.radius-16, r: 0, speed: 3.8, shields: 100, radius: 8 };
 
     explosions = new Array();
     tradeCursor = 0;
@@ -237,7 +237,7 @@ function drawPlanet()
 {
     var dx = planet.x - player.x;
     var dy = planet.y - player.y;
-    if(Math.abs(dx) > cx+planet.radius || Math.abs(dy) > cy+planet.radius) {
+    if(Math.abs(dx) > cx+planet.radius*2 || Math.abs(dy) > cy+planet.radius*2) {
 	// It's off screen...
 	var planetDir = Math.atan2(dy, dx);
 	var r1 = cx-32;
@@ -371,6 +371,19 @@ function drawDust()
     }
 }
 
+function drawMap()
+{
+
+    mapScale = 0.01;
+    for(var i=0;i<starMap.length;i++) {
+	var p = starMap[i];
+	drawCircle(p.x*mapScale, p.y*mapScale, p.radius*mapScale, "#ffff00");
+	drawString(ctx, p.name, p.x*mapScale-3*p.name.length, p.y*mapScale+4);
+    }
+    drawCircle(player.x*mapScale, player.y*mapScale, 4, "#ff0000");
+    drawString(ctx, "You are here", player.x*mapScale-3*6, player.y*mapScale+4);
+}
+
 function draw() {
     ctx.fillStyle = "#0000ff";
     ctx.fillRect(0, 0, SCREENWIDTH, SCREENHEIGHT);
@@ -387,6 +400,7 @@ function draw() {
 	if(enemies[i].health <= 0) continue;
 	drawEnemy(enemies[i]);
     }
+    if(keysDown[77]) drawMap()
     drawStatusBar();
     newTradingState = (orbitCounter > 120);
     if(newTradingState && !trading) {
@@ -474,7 +488,7 @@ function runEnemies() {
 	dd = (dir-e.r);
 	target = Math.sin(dd);
 	distsq = dx*dx+dy*dy;
-
+	e.laser = false;
 	// Don't pursue or fire at the player when they're near a planet
 	if (!nearPlanet) {
 	    if(Math.abs(target) < 10*degreesToRadians && distsq<256*256) {
@@ -487,6 +501,14 @@ function runEnemies() {
 	    if(distsq > 64*64 && e.speed < 1) {
 		e.speed += enemyAccel;
 	    }
+	}
+
+	// If we're near a planet, try to avoid it
+	var pdx = e.x - planet.x;
+	var pdy = e.y - planet.y;
+	if(pdx*pdx+pdy*pdy < 256*256) {
+	    ang = Math.atan2(pdy, pdx);
+	    e.r += Math.sin(ang);
 	}
 
 	// If I'm too close to another ship, move away
@@ -520,7 +542,7 @@ function runEnemies() {
 	    var closestDist = result[1];
 	    if (closest>-1) {
 		if(Math.random() < shotEvadeChance) {
-		    player.shields -= 10;
+		    player.shields -= 1;
 		    if(player.shields < 0) killPlayer();
 		    makeExplosion (player.x, player.y);
 		    e.laserLen = closestDist;
