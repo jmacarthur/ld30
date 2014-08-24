@@ -169,7 +169,6 @@ function resetGame()
     }
     pickups = new Array();
     stagingUpgrade = new Array();
-    for(var i=0;i<upgrades.length;i++) stagingUpgrade[i] = 0;
     shipAccel = 0.05;
     shipDecel = 0.05;
     laserPower = 10;
@@ -472,6 +471,7 @@ function draw() {
 	    totalStaging = cargoTotal;
 	    stagingCredit = credit;
 	    totalUpgrades = 0;
+	    for(var j=0;j<upgrades.length;j++) stagingUpgrade[j] = 0;
 	}
     }
 
@@ -863,13 +863,16 @@ function finaliseTrade()
 	var s = stagingUpgrade[i];
 	if(s>0) {
 	    if(i == 0) { // Engine
-		shipAccel += 0.02;
+		shipAccel += 0.02*s;
+		console.log("shipAccel upgraded to "+shipAccel);
 		}
 	    else if (i == 1) {
-		shipDecel += 0.02;
+		shipDecel += 0.02*s;
+		console.log("shipDecel upgraded to "+shipDecel);
 	    }
 	    else if (i == 2) {
-		laserPower *= 1.2;
+		for(var j=0;j<s;j++) laserPower *= 1.2;
+		console.log("Laser  upgraded to "+laserPower);
 	    }
 	}
     }
