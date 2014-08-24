@@ -36,16 +36,16 @@ var degreesToRadians = Math.PI/180;
 var radarx = 480+80;
 var radary = 240;
 var orbitCounter = 0;
-
+var nearPlanet = false;
 var commodities = [ "Silicon", "Tungsten", "Iron", "Helium", "Energy" ];
 
 function Planet(name, x, y, mass, radius)
 {
     this.name = name; this.x = x; this.y = y; this.mass = mass;
     this.radius = radius;
-    this.prices = new Array();
+    this.price = new Array();
     for(var i=0;i<commodities.length;i++) {
-	this.prices[i] = Math.random()*16+64;
+	this.price[i] = Math.random()*16+64;
     }
 }
 
@@ -150,6 +150,15 @@ function resetGame()
     player = { x: planet.x, y: planet.y-planet.radius-32, r: 0, speed: 3, shields: 100, radius: 8 };
 
     explosions = new Array();
+    tradeCursor = 0;
+    cargoTotal = 0;
+    staging = new Array(commodities.length);
+    cargo = new Array(commodities.length);
+    for(var i=0;i<commodities.length;i++) cargo[i] = 0;
+    trading = false;
+    tradeCountdown = 0;
+    shipCapacity = 30;
+    credit = 100;
 }
 
 function init()
@@ -210,6 +219,14 @@ function drawExplosions()
     }
 }
 
+function drawCircle(x, y, r, col)
+{
+    ctx.strokeStyle = col;
+    ctx.beginPath();
+    ctx.arc(x,y,r, 0, 2*Math.PI);
+    ctx.stroke();
+}
+
 function drawPlanet()
 {
     var dx = planet.x - player.x;
@@ -225,10 +242,9 @@ function drawPlanet()
 	ctx.stroke();
 	return;
     }
-    ctx.strokeStyle = "#ffffff";
-    ctx.beginPath();
-    ctx.arc(cx + dx, cy + dy, planet.radius, 0, 2*Math.PI);
-    ctx.stroke();
+    drawCircle(cx + dx, cy + dy, planet.radius, "#ffffff"); // Planet
+    drawCircle(cx + dx, cy + dy, planet.radius*2, "#00ff00"); // Safety zone
+    drawCircle(cx + dx, cy + dy, planet.radius+32, "#ffff00"); // Trade zonee
     textSize = planet.name.length * characterWidth;
     drawString(ctx, planet.name, cx - player.x + planet.x - textSize/2, cy - player.y + planet.y - 4);
 }
@@ -267,8 +283,8 @@ function drawStatusBar()
     ctx.fillStyle = "#000000";
     ctx.fillRect(480, 0, 640-480, SCREENHEIGHT);
     drawString(ctx, "Shield: "+player.shields, 480+8, 8);
-    drawString(ctx, "Speed: "+player.speed, 480+8, 8+16);
-    drawString(ctx, "Orbit: "+orbitCounter, 480+8, 8+32);
+    drawString(ctx, "Speed: "+player.speed.toFixed(1), 480+8, 8+8);
+    drawString(ctx, "Credit: "+credit.toFixed(1), 480+8, 8+16);
     ctx.beginPath();
     var radarSize = 64;
     ctx.arc(radarx, radary, radarSize, 0, 2*Math.PI);
@@ -290,16 +306,31 @@ function drawStatusBar()
 	ctx.arc(dx+radarx,dy+radary, 4, 0, 2*Math.PI);
 	ctx.stroke();
     }
+    for(var i=0;i<commodities.length;i++) {
+	drawString(ctx, commodities[i], 480+8, 128+8*i);
+	drawString(ctx, cargo[i].toFixed(1) + " MT", 480+64, 128+8*i);
+    }
 }
 
 function drawTradingScreen()
 {
+    if((frameCounter>>2) % 2 == 0) {
+	if(orbitCounter > 0 && !trading) {
+	    drawString(ctx, "Establishing uplink...", 64, 96);
+	}
+	else if(tradeCountdown > 0) {
+	    drawString(ctx, "Transferring goods", 64, 96);
+	}
+    }
+    if(!trading) return;
     drawString(ctx, "Welcome to "+planet.name+" trading station", 64, 64);
     var i;
     tradeHighlight = 0;
-    for(var i=0;i<commodities.lengthy;i++) {
-	drawString(ctx, commodities[i] + ": " + planet.price[i], 64, 128+8*i);
+    for(var i=0;i<commodities.length;i++) {
+	drawString(ctx, commodities[i] + ": " + planet.price[i].toFixed(2), 64, 128+8*i);
+	drawString(ctx, staging[i] + "MT", 256, 128+8*i);
     }
+    drawString(ctx , "o", 32, 128+8*tradeCursor);
 }
 
 function draw() {
@@ -319,19 +350,29 @@ function draw() {
 	drawEnemy(enemies[i]);
     }
     drawStatusBar();
-    if(orbitCounter > 120) {
-	drawTradingScreen();
+    newTradingState = (orbitCounter > 120);
+    if(newTradingState && !trading) {
+	for(var i=0;i<commodities.length;i++) {
+	    staging[i] = cargo[i];
+	    totalStaging = cargoTotal;
+	    stagingCredit = credit;
+	}
     }
+
+    trading = newTradingState;
+
+    drawTradingScreen();
+
     if(mode == MODE_WIN) {
 	ctx.drawImage(winBitmap, 0, 0);
     }
 }
 
 function processKeys() {
-    if((keysDown[40] || keysDown[83]) && player.speed > 0.2) player.speed -= 0.1;
-    if((keysDown[38] || keysDown[87]) && player.speed < 5.0) player.speed += 0.1;
-    if(keysDown[37] || keysDown[65]) player.r -= 0.1;
-    if(keysDown[39] || keysDown[68]) player.r += 0.1;
+    if((keysDown[40]) && player.speed > 0.2) player.speed -= 0.1;
+    if((keysDown[38]) && player.speed < 10.0) player.speed += 0.1;
+    if(keysDown[37]) player.r -= 0.1;
+    if(keysDown[39]) player.r += 0.1;
     laser = (keysDown[32] && laserCoolDown <= 0);
 }
 
@@ -395,16 +436,19 @@ function runEnemies() {
 	dd = (dir-e.r);
 	target = Math.sin(dd);
 	distsq = dx*dx+dy*dy;
-	if(Math.abs(target) < 10*degreesToRadians && distsq<256*256) {
-	    e.laser = (e.laserCoolDown <= 0);
-	}
-	e.r += 0.05*sgn(target);
 
-	if(distsq < 32*32 && e.speed>enemyDecel) {
-	    e.speed -= enemyDecel;
-	}
-	if(distsq > 64*64 && e.speed < 1) {
-	    e.speed += enemyAccel;
+	// Don't pursue or fire at the player when they're near a planet
+	if (!nearPlanet) {
+	    if(Math.abs(target) < 10*degreesToRadians && distsq<256*256) {
+		e.laser = (e.laserCoolDown <= 0);
+	    }
+	    e.r += 0.05*sgn(target);
+	    if(distsq < 32*32 && e.speed>enemyDecel) {
+		e.speed -= enemyDecel;
+	    }
+	    if(distsq > 64*64 && e.speed < 1) {
+		e.speed += enemyAccel;
+	    }
 	}
 
 	// If I'm too close to another ship, move away
@@ -481,7 +525,7 @@ function runOrbit() {
     {
 	orbitCounter = 0;
     }
-
+    nearPlanet = (dist < (planet.radius*2));
     gx = dx * planet.mass / dist;
     gy = dy * planet.mass / dist;
     vx += gx;
@@ -556,6 +600,16 @@ function runPlayer() {
     }
     if(frameCounter % 32 == 0 && player.shields < 100) player.shields += 1;
     runOrbit();
+
+    if(tradeCountdown > 0) {
+	if(!trading) tradeCountdown = 0;
+	else {
+	    tradeCountdown -= 1;
+	    if(tradeCountdown == 0) {
+		finaliseTrade();
+	    }
+	}
+    }
 }
 
 function updateStar()
@@ -597,6 +651,40 @@ function drawRepeat() {
     if(!stopRunloop) setTimeout('drawRepeat()',20);
 }
 
+function buySellGoods(index, amount)
+{
+    if(totalStaging + amount > shipCapacity) return;
+    if(amount < 0 && staging[index] <= 0) return;
+    if(stagingCredit - amount*planet.price[index] < 0) return;
+    staging[index] += amount;
+    totalStaging += amount;
+    stagingCredit -= amount*planet.price[index];
+}
+
+function executeTrade()
+{
+    if( tradeCountdown > 0 ) return;
+    for(var i=0;i<commodities.length;i++) {
+	if(staging[i] != cargo[i]) {
+	    console.log("Executing trade...");
+	    tradeCountdown = 128;
+	    return;
+	}
+    }
+}
+
+function finaliseTrade()
+{
+    for(var i=0;i<commodities.length;i++) {
+	diff = staging[i] - cargo[i];
+	credit -= diff * planet.price[i];
+	cargo[i] = staging[i];
+	cargoTotal = totalStaging;
+	credit = stagingCredit;
+    }
+}
+
+
 if (canvas.getContext('2d')) {
     stopRunloop = false;
     ctx = canvas.getContext('2d');
@@ -616,6 +704,23 @@ if (canvas.getContext('2d')) {
 	if(c == 82) {
 	    if(mode == MODE_WIN) {
 		mode = MODE_TITLE;
+	    }
+	}
+	if(trading) {
+	    if(c == 87 && tradeCursor > 0) {
+		tradeCursor -= 1;
+	    }
+	    else if(c == 83 && tradeCursor < commodities.length-1) {
+		tradeCursor += 1;
+	    }
+	    else if(c == 65 && tradeCountdown <= 0) {
+		buySellGoods(tradeCursor, -1);
+	    }
+	    else if(c == 68 && tradeCountdown <= 0) {
+		buySellGoods(tradeCursor, 1);
+	    }
+	    else if(c == 13) {
+		executeTrade();
 	    }
 	}
     };
