@@ -242,10 +242,16 @@ function drawPlanet()
 	var planetDir = Math.atan2(dy, dx);
 	var r1 = cx-32;
 	var r2 = cx-16;
+
+	var markerx = cx + r1*Math.cos(planetDir);
+	var markery = cy + r1*Math.sin(planetDir)
 	ctx.beginPath();
-	ctx.moveTo(cx + r1*Math.cos(planetDir), cy+r1*Math.sin(planetDir));
+	ctx.moveTo(markerx, markery);
 	ctx.lineTo(cx + r2*Math.cos(planetDir), cy+r2*Math.sin(planetDir));
 	ctx.stroke();
+	dist = Math.sqrt(dx*dx+dy+dy);
+	drawString(ctx, planet.name, markerx - 3*planet.name.length, markery-8);
+	drawString(ctx, dist.toFixed(0), markerx - 3*planet.name.length, markery);
 	return;
     }
     drawCircle(cx + dx, cy + dy, planet.radius, "#ffffff"); // Planet
