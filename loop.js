@@ -38,6 +38,8 @@ var radary = 240;
 var orbitCounter = 0;
 var nearPlanet = false;
 var commodities = [ "Silicon", "Tungsten", "Iron", "Helium", "Energy" ];
+var units = [ "MT", "MT", "MT", "MT", "MWH" ];
+var dustParticles = 20;
 
 function Planet(name, x, y, mass, radius)
 {
@@ -159,6 +161,10 @@ function resetGame()
     tradeCountdown = 0;
     shipCapacity = 30;
     credit = 100;
+    dust = new Array(dustParticles);
+    for(var i=0;i<dustParticles;i++) {
+	dust[i]  = { x: Math.random()*480, y: Math.random()*480 };
+    }
 }
 
 function init()
@@ -308,7 +314,7 @@ function drawStatusBar()
     }
     for(var i=0;i<commodities.length;i++) {
 	drawString(ctx, commodities[i], 480+8, 128+8*i);
-	drawString(ctx, cargo[i].toFixed(1) + " MT", 480+64, 128+8*i);
+	drawString(ctx, cargo[i].toFixed(1) + " " + units[i], 480+64, 128+8*i);
     }
 }
 
@@ -328,9 +334,35 @@ function drawTradingScreen()
     tradeHighlight = 0;
     for(var i=0;i<commodities.length;i++) {
 	drawString(ctx, commodities[i] + ": " + planet.price[i].toFixed(2), 64, 128+8*i);
-	drawString(ctx, staging[i] + "MT", 256, 128+8*i);
+	drawString(ctx, staging[i] + " "+units[i], 256, 128+8*i);
     }
     drawString(ctx , "o", 32, 128+8*tradeCursor);
+    drawString(ctx, "Use W/S to select a commodity", 64, 192);
+    drawString(ctx, "Use A/E to sell / buy", 64, 200);
+    drawString(ctx, "Press enter to finalize trade", 64, 216);
+}
+
+function drawDust()
+{
+    var dx = player.speed*Math.cos(player.r);
+    var dy = player.speed*Math.sin(player.r);
+    if(Math.abs(dx)<1) dx = 1;
+    if(Math.abs(dy)<1) dy = 1;
+    for(var i=0;i<dustParticles;i++) {
+	x = dust[i].x - player.x;
+	y = dust[i].y - player.y;
+	if(x<0) dust[i].x += 480;
+	if(y<0) dust[i].y += 480;
+	if(x>480) dust[i].x -= 480;
+	if(y>480) dust[i].y -= 480;
+	x = dust[i].x - player.x;
+	y = dust[i].y - player.y;
+	ctx.strokeStyle = "#ffffff";
+	ctx.beginPath();
+	ctx.moveTo(x,y);
+	ctx.lineTo(x+dx,y+dy);
+	ctx.stroke();
+    }
 }
 
 function draw() {
@@ -341,7 +373,7 @@ function draw() {
 	ctx.drawImage(titleBitmap, 0, 0);
 	return;
     }
-
+    drawDust();
     drawPlayer (player.x,player.y);
     drawPlanet();
     drawExplosions();
