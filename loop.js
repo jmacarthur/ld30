@@ -50,21 +50,32 @@ function Planet(name, x, y, mass, radius)
     this.radius = radius;
     this.price = new Array();
     for(var i=0;i<commodities.length;i++) {
-	this.price[i] = Math.random()*16+64;
+	range = 16 + (x+y) / 2000;
+	this.price[i] = Math.random()*range+64;
     }
 }
 
 var starMap = [
-    new Planet("UNQUHEX", 256,256, 0.1, 128),
+    new Planet("UNQUHEX", 2500,18000, 0.1, 128),
     new Planet("OLAOYRI", 31161.6740694,32781.9211199, 0.1, 97),
-    new Planet("ORCAMEC", 31210.6883079,346.27624567, 0.1, 127),
+    new Planet("ORCAMEC", 31210.6883079,5346.27624567, 0.1, 127),
     new Planet("OLAOYRI", 14479.4387553,5512.81099972, 0.1, 83),
     new Planet("ILKUOUC", 17507.3398211,24201.9298703, 0.1, 66),
     new Planet("PREO",    27097.5082089,29768.19066, 0.1, 256),
-    new Planet("TESAUS",  5436.93976607,79.7122271237, 0.1, 111),
+    new Planet("TESAUS",  5436.93976607,40079.7122271237, 0.1, 111),
     new Planet("EXQUCXEE",36710.6468034,45688.9802764, 0.1, 73),
-    new Planet("TISGEAEU",53958.1179706,63367.7590348, 0.1, 90),
-    new Planet("AREUCAW", 21736.1052383,2496.67420002, 0.1, 93)
+    new Planet("TISGEAEU",31195.1179706,37367.7590348, 0.1, 90),
+    new Planet("AREUCAW", 21736.1052383,2496.67420002, 0.1, 93),
+    new Planet("LIVWEOIKFE",58546,1203, 0.1, 76),
+    new Planet("VEAFM",21333,16570, 0.1, 79),
+    new Planet("AYBIM",9816,17121, 0.1, 72),
+    new Planet("MAUVDED",5194,30868, 0.1,112),
+    new Planet("AFIA",33404,20230, 0.1,87),
+    new Planet("HETAO",9603,33335, 0.1,97),
+    new Planet("AULER",6332,25748, 0.1,114),
+    new Planet("OILOYDEE",17508,31346, 0.1,69),
+    new Planet("EVAKIDIL",25445,18226, 0.1,66,114),
+    new Planet("ABONISMT",22454,12434, 0.1, 95)
 ];
 
 function Explosion(x,y)
@@ -120,7 +131,10 @@ function drawString(context, string, x, y) {
 
 function paintTitleBitmaps()
 {
-    drawString(titlectx, ' a demo of the JavaScript/HTML5 game loop',32,32);
+    drawString(titlectx, 'high frequency trader',32,32);
+    drawString(titlectx, 'A fast space trading game',32,64);
+    drawString(titlectx, 'Press space to start.',32,96);
+
     drawString(winctx, 'Your game should always have an ending',32,32);
 }
 
@@ -872,7 +886,7 @@ function finaliseTrade()
 	    }
 	    else if (i == 2) {
 		for(var j=0;j<s;j++) laserPower *= 1.2;
-		console.log("Laser  upgraded to "+laserPower);
+		console.log("Laser upgraded to "+laserPower);
 	    }
 	}
     }
