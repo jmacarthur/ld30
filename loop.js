@@ -41,6 +41,8 @@ var nearPlanet = false;
 var commodities = [ "Silicon", "Tungsten", "Iron", "Helium", "Energy" ];
 var units = [ "MT", "MT", "MT", "MT", "MWH" ];
 var dustParticles = 20;
+var upgrades = [ "Engine upgrade", "Brake upgrade", "laser upgrade" ];
+var upgradeCost = [ 100, 100, 100 ];
 
 function Planet(name, x, y, mass, radius)
 {
@@ -166,6 +168,11 @@ function resetGame()
 	dust[i]  = { x: Math.random()*480, y: Math.random()*480 };
     }
     pickups = new Array();
+    stagingUpgrade = new Array();
+    for(var i=0;i<upgrades.length;i++) stagingUpgrade[i] = 0;
+    shipAccel = 0.05;
+    shipDecel = 0.05;
+    laserPower = 10;
 }
 
 function init()
@@ -381,6 +388,11 @@ function drawTradingScreen()
 	drawString(ctx, commodities[i] + ": " + planet.price[i].toFixed(2), 64, 128+8*i);
 	drawString(ctx, staging[i] + " "+units[i], 256, 128+8*i);
     }
+    for(var i=0;i<upgrades.length;i++) {
+	drawString(ctx, upgrades[i] +": " + upgradeCost[i], 64, 128+8*(i+commodities.length));
+	drawString(ctx, " "+stagingUpgrade[i], 256, 128+8*(i+commodities.length));
+    }
+    
     drawString(ctx , "o", 32, 128+8*tradeCursor);
     drawString(ctx, "Use W/S to select a commodity", 64, 192);
     drawString(ctx, "Use A/E to sell / buy", 64, 200);
@@ -459,6 +471,7 @@ function draw() {
 	    staging[i] = cargo[i];
 	    totalStaging = cargoTotal;
 	    stagingCredit = credit;
+	    totalUpgrades = 0;
 	}
     }
 
@@ -473,8 +486,8 @@ function draw() {
 }
 
 function processKeys() {
-    if((keysDown[40]) && player.speed > 0.2) player.speed -= 0.1;
-    if((keysDown[38]) && player.speed < 10.0) player.speed += 0.1;
+    if((keysDown[40]) && player.speed > 0.2) player.speed -= shipDecel;
+    if((keysDown[38]) && player.speed < 10.0) player.speed += shipAccel;
     if(keysDown[37]) player.r -= 0.1;
     if(keysDown[39]) player.r += 0.1;
     laser = (keysDown[32] && laserCoolDown <= 0);
@@ -724,7 +737,7 @@ function runPlayer() {
 	var closest = result[0];
 	var closestDist = result[1];
 	if (closest>-1) {
-	    enemies[closest].health -= 10;
+	    enemies[closest].health -= laserPower;
 	    if(enemies[closest].health <= 0) makePickup(enemies[closest].x,enemies[closest].y);
 
 	    makeExplosion(enemies[closest].x, enemies[closest].y);
@@ -797,8 +810,22 @@ function drawRepeat() {
     if(!stopRunloop) setTimeout('drawRepeat()',20);
 }
 
+function buySellUpgrade(index, amount)
+{
+    console.log("Attempting to buy upgrade: index="+index+" amount="+amount+" staging credit="+stagingCredit);
+    if(stagingUpgrade[index] + amount >= 0 && stagingCredit - amount*upgradeCost[index] >= 0) {
+	stagingUpgrade[index] += amount;
+	stagingCredit -= amount*upgradeCost[index];
+	console.log("Done, stagingCredit is now "+stagingCredit);
+	totalUpgrades += amount;
+    }
+}
 function buySellGoods(index, amount)
 {
+    if(index >= commodities.length) {
+	buySellUpgrade(index-commodities.length, amount);
+	return;
+    }
     if(totalStaging + amount > shipCapacity) return;
     if(amount < 0 && staging[index] <= 0) return;
     if(stagingCredit - amount*planet.price[index] < 0) return;
@@ -810,6 +837,10 @@ function buySellGoods(index, amount)
 function executeTrade()
 {
     if( tradeCountdown > 0 ) return;
+    if(totalUpgrades > 0) {
+	tradeCountdown = 128;
+	return;
+    }
     for(var i=0;i<commodities.length;i++) {
 	if(staging[i] != cargo[i]) {
 	    console.log("Executing trade...");
@@ -827,6 +858,20 @@ function finaliseTrade()
 	cargo[i] = staging[i];
 	cargoTotal = totalStaging;
 	credit = stagingCredit;
+    }
+    for(var i=0;i<upgrades.length;i++) {
+	var s = stagingUpgrade[i];
+	if(s>0) {
+	    if(i == 0) { // Engine
+		shipAccel += 0.02;
+		}
+	    else if (i == 1) {
+		shipDecel += 0.02;
+	    }
+	    else if (i == 2) {
+		laserPower *= 1.2;
+	    }
+	}
     }
 }
 
@@ -856,7 +901,7 @@ if (canvas.getContext('2d')) {
 	    if(c == 87 && tradeCursor > 0) {
 		tradeCursor -= 1;
 	    }
-	    else if(c == 83 && tradeCursor < commodities.length-1) {
+	    else if(c == 83 && tradeCursor < commodities.length+upgrades.length) {
 		tradeCursor += 1;
 	    }
 	    else if(c == 65 && tradeCountdown <= 0) {
