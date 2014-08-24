@@ -176,7 +176,7 @@ function resetGame()
     trading = false;
     tradeCountdown = 0;
     shipCapacity = 30;
-    credit = 100;
+    credit = 1000;
     dust = new Array(dustParticles);
     for(var i=0;i<dustParticles;i++) {
 	dust[i]  = { x: Math.random()*480, y: Math.random()*480 };
@@ -191,10 +191,14 @@ function resetGame()
 function init()
 {
     mode = MODE_TITLE;
-    playerImage = getImage("player");
-    springSound = new Audio("audio/boing.wav");
+    laserSound = new Audio("audio/pewpew.wav");
+    enemyLaserSound = new Audio("audio/enemylaser.wav");
+    damageSound = new Audio("audio/explosion.wav");
+    pickupSound = new Audio("audio/pickup.wav");
     makeTitleBitmaps();
     ctx.lineWidth = 2;
+    keyImage = getImage("keys");
+
     return true;
 }
 
@@ -338,7 +342,6 @@ function drawStatusBar()
     ctx.fillStyle = "#00ff00";
     ctx.fillRect(480+48, 26,player.speed*8, 8);
 
-
     drawRect
     drawString(ctx, "Credit: "+credit.toFixed(1), 480+8, 48);
     ctx.beginPath();
@@ -381,6 +384,7 @@ function drawStatusBar()
 	drawString(ctx, commodities[i], 480+8, 128+8*i);
 	drawString(ctx, cargo[i].toFixed(1) + " " + units[i], 480+64, 128+8*i);
     }
+    ctx.drawImage(keyImage, 480, 384);
 }
 
 function drawTradingScreen()
@@ -510,6 +514,7 @@ function processKeys() {
 function makeExplosion(x,y)
 {
     explosions.push(new Explosion(x,y));
+    damageSound.play();
 }
 
 function purge()
@@ -635,6 +640,7 @@ function runEnemies() {
 	}
 
 	if (e.laser) {
+	    enemyLaserSound.play();
 	    e.laserCoolDown = 30;
 	    var result = findClosestApproach(e.x, e.y, e.r, [player]);
 	    var closest = result[0];
@@ -745,6 +751,7 @@ function runPlayer() {
     player.x += player.speed*Math.cos(player.r);
     player.y += player.speed*Math.sin(player.r);
     if(laser) {
+	laserSound.play();
 	// Look for enemies near the beam
 	var i;
 	var result = findClosestApproach(player.x, player.y, player.r, enemies);
@@ -766,6 +773,7 @@ function runPlayer() {
 	dx = p.x - player.x;
 	dy = p.y - player.y;
 	if(dx*dx+dy*dy < 16*16) {
+	    pickupSound.play();
 	    pickups[i].collected = true;
 	    credit += 30;
 	}
