@@ -344,6 +344,9 @@ function drawStatusBar()
 
     drawRect
     drawString(ctx, "Credit: "+credit.toFixed(1), 480+8, 48);
+    drawString(ctx, "Acceleration: "+(shipAccel*10).toFixed(1), 480+8, 56);
+    drawString(ctx, "Brake power : "+(shipDecel*10).toFixed(1), 480+8, 64);
+    drawString(ctx, "Laser power : "+laserPower.toFixed(1), 480+8, 72);
     ctx.beginPath();
     var radarSize = 64;
     ctx.arc(radarx, radary, radarSize, 0, 2*Math.PI);
@@ -384,7 +387,7 @@ function drawStatusBar()
 	drawString(ctx, commodities[i], 480+8, 128+8*i);
 	drawString(ctx, cargo[i].toFixed(1) + " " + units[i], 480+64, 128+8*i);
     }
-    ctx.drawImage(keyImage, 480, 384);
+    ctx.drawImage(keyImage, 480+10, 376);
 }
 
 function drawTradingScreen()
