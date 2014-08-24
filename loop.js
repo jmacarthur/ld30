@@ -327,6 +327,10 @@ function drawStatusBar()
 {
     ctx.fillStyle = "#000000";
     ctx.strokeStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(480,0);
+    ctx.lineTo(480,480);
+    ctx.stroke();
     ctx.fillRect(480, 0, 640-480, SCREENHEIGHT);
     drawString(ctx, "Shield", 480+8, 8);
     if(player.health < 34) shieldCol = "#ff0000";
@@ -468,7 +472,7 @@ function drawMap()
 }
 
 function draw() {
-    ctx.fillStyle = "#0000ff";
+    ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, SCREENWIDTH, SCREENHEIGHT);
 
     if(mode == MODE_TITLE) {
