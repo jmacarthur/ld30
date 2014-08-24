@@ -914,7 +914,7 @@ if (canvas.getContext('2d')) {
 	var c = event.keyCode;
 	keysDown[c] = 1;
 	if(c == 81) {
-	    stopRunloop=true;
+	    //stopRunloop=true;
 	}
 	if(c == 32) {
 	    if(mode == MODE_TITLE) {
