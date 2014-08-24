@@ -488,6 +488,11 @@ function runEnemies() {
 	dd = (dir-e.r);
 	target = Math.sin(dd);
 	distsq = dx*dx+dy*dy;
+	if(distsq >= 1024*1024) {
+	    // Despawn when enemies get too far away
+	    e.health = 0;
+	    continue;
+	}
 	e.laser = false;
 	// Don't pursue or fire at the player when they're near a planet
 	if (!nearPlanet) {
@@ -631,7 +636,6 @@ function spawnEnemies()
 	    enemies.push ( new Enemy(newX + (i%3) * 64, newY + (i/3) * 64));
 	}
     }
-
 }
 
 function runPlayer() {
