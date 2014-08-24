@@ -931,7 +931,7 @@ if (canvas.getContext('2d')) {
 	    if(c == 87 && tradeCursor > 0) {
 		tradeCursor -= 1;
 	    }
-	    else if(c == 83 && tradeCursor < commodities.length+upgrades.length) {
+	    else if(c == 83 && tradeCursor < commodities.length+upgrades.length-1) {
 		tradeCursor += 1;
 	    }
 	    else if(c == 65 && tradeCountdown <= 0) {
