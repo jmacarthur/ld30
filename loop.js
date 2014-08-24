@@ -131,11 +131,7 @@ function drawString(context, string, x, y) {
 
 function paintTitleBitmaps()
 {
-    drawString(titlectx, 'high frequency trader',32,32);
-    drawString(titlectx, 'A fast space trading game',32,64);
-    drawString(titlectx, 'Press space to start.',32,96);
-
-    drawString(winctx, 'Your game should always have an ending',32,32);
+    titleBitmap.draw(titlectx,0,0);
 }
 
 function makeTitleBitmaps()
@@ -150,7 +146,9 @@ function makeTitleBitmaps()
     winctx = winBitmap.getContext('2d');
     bitfont = new Image();
     bitfont.src = "graphics/bitfont.png";
-    bitfont.onload = paintTitleBitmaps;
+    titleBitmap = new Image();
+    titleBitmap.src = "graphics/title.png";
+    titleBitmap.onload = paintTitleBitmaps;
 }
 
 function resetGame()
@@ -176,7 +174,7 @@ function resetGame()
     trading = false;
     tradeCountdown = 0;
     shipCapacity = 30;
-    credit = 1000;
+    credit = 150;
     dust = new Array(dustParticles);
     for(var i=0;i<dustParticles;i++) {
 	dust[i]  = { x: Math.random()*480, y: Math.random()*480 };
@@ -337,7 +335,6 @@ function drawStatusBar()
     else if(player.health < 67)	shieldCol = "#ffff00";
     else shieldCol = "#00ff00";
     drawRect(480+48, 8, 100, 10, "#ffffff");
-    console.log("shield: "+player.health);
     ctx.fillStyle = shieldCol;
     ctx.fillRect(480+48, 8,player.health, 8);
 
@@ -363,14 +360,14 @@ function drawStatusBar()
     if(orbitCounter > 0 && !trading) {
 	drawString(ctx, "COMMS LINK", 480+8, 96);
 	ctx.fillStyle = "#00ff00";
-	ctx.fillRect(480+8, 104, orbitCounter, 8);
-	drawRect(480+8, 104, 128, 8, "#ffffff");
+	ctx.fillRect(480+8, 106, orbitCounter, 8);
+	drawRect(480+8, 106, 128, 8, "#ffffff");
     }
     else if(tradeCountdown > 0) {
 	drawString(ctx, "GOODS TRANSFER", 480+8, 96);
 	ctx.fillStyle = "#00ff00";
-	ctx.fillRect(480+8, 104, 128 - tradeCountdown, 8);
-	drawRect(480+8, 104, 128, 8, "#ffffff");
+	ctx.fillRect(480+8, 106, 128 - tradeCountdown, 8);
+	drawRect(480+8, 106, 128, 8, "#ffffff");
     }
 
 
@@ -409,17 +406,19 @@ function drawTradingScreen()
     var i;
     tradeHighlight = 0;
     for(var i=0;i<commodities.length;i++) {
-	drawString(ctx, commodities[i] + ": " + planet.price[i].toFixed(2), 64, 128+8*i);
+	drawString(ctx, commodities[i] + ": ", 64, 128+8*i);
+	drawString(ctx, "" + planet.price[i].toFixed(2), 192, 128+8*i);
 	drawString(ctx, staging[i] + " "+units[i], 256, 128+8*i);
     }
     for(var i=0;i<upgrades.length;i++) {
-	drawString(ctx, upgrades[i] +": " + upgradeCost[i], 64, 128+8*(i+commodities.length));
-	drawString(ctx, " "+stagingUpgrade[i], 256, 128+8*(i+commodities.length));
+	drawString(ctx, upgrades[i] +": ", 64, 128+8*(i+commodities.length));
+	drawString(ctx, ""+upgradeCost[i], 192, 128+8*(i+commodities.length));
+	drawString(ctx, ""+stagingUpgrade[i], 256, 128+8*(i+commodities.length));
     }
     
     drawString(ctx , "o", 32, 128+8*tradeCursor);
-    drawString(ctx, "Use W/S to select a commodity", 64, 192);
-    drawString(ctx, "Use A/E to sell / buy", 64, 200);
+    drawString(ctx, "Use W/S to select a commodity", 64, 200);
+    drawString(ctx, "Use A/E to sell / buy", 64, 208);
     drawString(ctx, "Press enter to finalize trade", 64, 216);
 }
 
@@ -913,7 +912,6 @@ if (canvas.getContext('2d')) {
     ctx = canvas.getContext('2d');
     body.onkeydown = function (event) {
 	var c = event.keyCode;
-	console.log("Keydown: "+c);
 	keysDown[c] = 1;
 	if(c == 81) {
 	    stopRunloop=true;
