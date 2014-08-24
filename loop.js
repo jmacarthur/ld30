@@ -30,16 +30,23 @@ var explodePoly = [
     [7.391036,-3.061467] ];
 var enemyAccel = 0.01;
 var enemyDecel = 0.05;
-characterWidth = 12;
+characterWidth = 6;
 var shotEvadeChance = 0.80;
 var degreesToRadians = Math.PI/180;
 var radarx = 480+80;
 var radary = 240;
 var orbitCounter = 0;
+
+var commodities = [ "Silicon", "Tungsten", "Iron", "Helium", "Energy" ];
+
 function Planet(name, x, y, mass, radius)
 {
     this.name = name; this.x = x; this.y = y; this.mass = mass;
     this.radius = radius;
+    this.prices = new Array();
+    for(var i=0;i<commodities.length;i++) {
+	this.prices[i] = Math.random()*16+64;
+    }
 }
 
 var starMap = [
@@ -95,7 +102,7 @@ function drawChar(context, c, x, y)
 {
     c = c.charCodeAt(0);
     if(c > 0) {
-        context.drawImage(bitfont, c*6, 0, 6,8, x, y, characterWidth, 16);
+        context.drawImage(bitfont, c*6, 0, 6,8, x, y, characterWidth, 8);
     }
 }
 
@@ -103,7 +110,7 @@ function drawString(context, string, x, y) {
     string = string.toUpperCase();
     for(i = 0; i < string.length; i++) {
 	drawChar(context, string[i], x, y);
-	x += 12;
+	x += characterWidth;
     }
 }
 
@@ -223,7 +230,7 @@ function drawPlanet()
     ctx.arc(cx + dx, cy + dy, planet.radius, 0, 2*Math.PI);
     ctx.stroke();
     textSize = planet.name.length * characterWidth;
-    drawString(ctx, planet.name, cx - player.x + planet.x - textSize/2, cy - player.y + planet.y - 8);
+    drawString(ctx, planet.name, cx - player.x + planet.x - textSize/2, cy - player.y + planet.y - 4);
 }
 
 function drawLaser(sx, sy, dir, len)
@@ -283,7 +290,16 @@ function drawStatusBar()
 	ctx.arc(dx+radarx,dy+radary, 4, 0, 2*Math.PI);
 	ctx.stroke();
     }
+}
 
+function drawTradingScreen()
+{
+    drawString(ctx, "Welcome to "+planet.name+" trading station", 64, 64);
+    var i;
+    tradeHighlight = 0;
+    for(var i=0;i<commodities.lengthy;i++) {
+	drawString(ctx, commodities[i] + ": " + planet.price[i], 64, 128+8*i);
+    }
 }
 
 function draw() {
@@ -303,7 +319,9 @@ function draw() {
 	drawEnemy(enemies[i]);
     }
     drawStatusBar();
-
+    if(orbitCounter > 120) {
+	drawTradingScreen();
+    }
     if(mode == MODE_WIN) {
 	ctx.drawImage(winBitmap, 0, 0);
     }
